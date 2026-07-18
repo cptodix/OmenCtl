@@ -10,6 +10,29 @@
 
 ---
 
+## 💾 Installation & Upgrades
+
+### Prerequisites
+* A compatible Linux distribution (Ubuntu, Fedora, Arch, OpenSUSE, CachyOS, etc.)
+* `git` installed
+
+### Installation (v1.6.5)
+Open your terminal and run:
+```bash
+# Clone the repository
+git clone https://github.com/yunusemreyl/OmenCtl.git
+cd OmenCtl
+
+# Run the unified installer
+chmod +x setup.sh
+sudo ./setup.sh install
+```
+If you wish to uninstall OmenCtl, you can run the following command:
+```bash
+omenctl uninstall
+```
+*(To upgrade an existing installation without losing configuration, run `sudo ./setup.sh update`)*
+
 ## 📖 UI Overview
 
 ### Performance & Fan Control
@@ -52,34 +75,13 @@
 
 ---
 
-## 💾 Installation & Upgrades
-
-### Prerequisites
-* A compatible Linux distribution (Ubuntu, Fedora, Arch, OpenSUSE, CachyOS, etc.)
-* `git` installed
-
-### Installation (v1.6.5)
-Open your terminal and run:
-```bash
-# Clone the repository
-git clone https://github.com/yunusemreyl/OmenCtl.git
-cd OmenCtl
-
-# Run the unified installer
-chmod +x setup.sh
-sudo ./setup.sh install
-```
-If you wish to uninstall OmenCtl, you can run the following command:
-```bash
-omenctl uninstall
-```
 
 ## Credits & Acknowledgements
 * Special thanks to the creator of the [omen-rgb-keyboard](https://github.com/OmenLinux/omen-rgb-keyboard) kernel module, which provides the hardware-accelerated RGB lighting effects used in this project.
 * Undervolting and CPU tuning on AMD processors is powered by [RyzenAdj](https://github.com/FlyGoat/RyzenAdj).
 * Undervolting on Intel processors is powered by [undervolt](https://github.com/georgewhewell/undervolt).
 
-*(To upgrade an existing installation without losing configuration, run `sudo ./setup.sh update`)*
+
 
 ### NixOS Installation (Flake)
 OmenCtl comes with built-in Nix Flake support and a dedicated NixOS module.
