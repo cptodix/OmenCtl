@@ -101,22 +101,27 @@ class MUXController:
         try:
             env = dict(os.environ, PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin")
             requires_reboot = False
+            pkexec = shutil.which("pkexec")
+
             if self.backend == "envycontrol" and self.envycontrol:
                 m = {"hybrid":"hybrid","discrete":"nvidia","integrated":"integrated"}.get(mode)
                 if m is None:
                     return f"Error: Unsupported mode '{mode}' for envycontrol"
-                subprocess.run([self.envycontrol, "-s", m], check=True, capture_output=True, text=True, env=env, timeout=10)
+                cmd = [pkexec, self.envycontrol, "-s", m] if pkexec else [self.envycontrol, "-s", m]
+                subprocess.run(cmd, check=True, capture_output=True, text=True, env=env, timeout=30)
                 requires_reboot = True
             elif self.backend == "supergfxctl" and self.supergfxctl:
                 m = {"hybrid":"Hybrid","discrete":"Dedicated","integrated":"Integrated"}.get(mode)
                 if m is None:
                     return f"Error: Unsupported mode '{mode}' for supergfxctl"
-                subprocess.run([self.supergfxctl, "-m", m], check=True, capture_output=True, text=True, env=env, timeout=10)
+                cmd = [pkexec, self.supergfxctl, "-m", m] if pkexec else [self.supergfxctl, "-m", m]
+                subprocess.run(cmd, check=True, capture_output=True, text=True, env=env, timeout=30)
             elif self.backend == "prime-select" and self.prime_select:
                 m = {"hybrid":"on-demand","discrete":"nvidia","integrated":"intel"}.get(mode)
                 if m is None:
                     return f"Error: Unsupported mode '{mode}' for prime-select"
-                subprocess.run([self.prime_select, m], check=True, capture_output=True, text=True, env=env, timeout=10)
+                cmd = [pkexec, self.prime_select, m] if pkexec else [self.prime_select, m]
+                subprocess.run(cmd, check=True, capture_output=True, text=True, env=env, timeout=30)
                 requires_reboot = True
             else:
                 return "No backend"
