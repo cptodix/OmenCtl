@@ -2118,7 +2118,7 @@ class HPManagerWindow(Gtk.ApplicationWindow):
         # ── Navigation items (excluding Settings) ──
         nav_items = [
             ("fan",       self.page_titles["fan"],       "system-run-symbolic"),
-            ("lighting",  self.page_titles["lighting"],  "keyboard-brightness-symbolic"),
+            ("lighting",  self.page_titles["lighting"],  "preferences-color-symbolic"),
             ("power",     self.page_titles["power"],     "battery-symbolic"),
             ("keyboard",  self.page_titles["keyboard"],  "preferences-desktop-keyboard-symbolic"),
             ("app_profiles", self.page_titles["app_profiles"], "applications-system-symbolic"),

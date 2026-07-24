@@ -243,10 +243,10 @@ install_dependencies() {
             $INSTALL_CMD python python-gobject gtk4 libadwaita python-pydbus python-cairo python-pystray python-pillow python-evdev acpica cmake gcc make pciutils
             ;;
         apt)
-            $INSTALL_CMD python3 python3-gi python3-gi-cairo gir1.2-gtk-4.0 gir1.2-adw-1 python3-pydbus python3-cairo python3-pystray python3-pil python3-evdev acpica-tools cmake gcc make libpci-dev
+            $INSTALL_CMD python3 python3-gi python3-gi-cairo gir1.2-gtk-4.0 gir1.2-adw-1 python3-pydbus python3-cairo python3-pystray python3-pil python3-evdev acpica-tools cmake gcc g++ make libpci-dev
             ;;
         dnf|zypper)
-            $INSTALL_CMD python3 python3-gobject gtk4 libadwaita python3-pydbus python3-cairo python-pystray python3-pillow python3-evdev acpica-tools cmake gcc make pciutils-devel
+            $INSTALL_CMD python3 python3-gobject gtk4 libadwaita python3-pydbus python3-cairo python3-pystray python3-pillow python3-evdev acpica-tools cmake gcc gcc-c++ make pciutils-devel
             ;;
     esac
 

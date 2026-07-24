@@ -106,7 +106,12 @@ class PowerProfileController:
                     self.available = True
                     logger.info("PowerProfileController: Using Power-Profiles-Daemon backend")
                 except Exception:
-                    pass
+                    if shutil.which("system76-power"):
+                        self.mode = "system76"
+                        self.available = True
+                        logger.info("PowerProfileController: Using system76-power backend")
+                    else:
+                        pass
 
         if not self.available:
             if sysfs_exists("/sys/devices/platform/hp-wmi/thermal_profile") or \
@@ -148,6 +153,17 @@ class PowerProfileController:
                 if "performance" in tp:
                     return "performance"
                 return "balanced"
+            if self.mode == "system76":
+                try:
+                    res = subprocess.run(["system76-power", "profile"], capture_output=True, text=True, timeout=1.0)
+                    out = res.stdout.strip().lower()
+                    if "battery" in out:
+                        return "power-saver"
+                    if "performance" in out:
+                        return "performance"
+                    return "balanced"
+                except Exception:
+                    return "balanced"
             return "balanced"
         except Exception:
             return "balanced"
@@ -183,12 +199,14 @@ class PowerProfileController:
         return None if not found else "balanced"
 
     def _sync_omen_profile(self, profile):
+        ok = False
         target_candidates = {
             "performance": ("performance",),
             "balanced": ("balanced",),
             "power-saver": ("low-power", "quiet", "cool", "power-saver", "balanced"),
         }.get(profile, ("balanced",))
 
+        # Write generic kernel platform_profile (PPD / power profile daemon interface)
         for path in (
             "/sys/firmware/acpi/platform_profile",
             "/sys/devices/platform/hp-wmi/platform_profile",
@@ -210,8 +228,13 @@ class PowerProfileController:
 
             for target in candidates:
                 if sysfs_write(path, target):
-                    return True
+                    ok = True
+                    break
 
+        # ALSO write HP-specific thermal_profile — this is what BIOS reads to
+        # select its built-in fan curve (0=balanced, 1=performance).
+        # Must be written independently of platform_profile; previously this block
+        # was skipped because _sync_omen_profile returned early above.
         thermal_val = {"power-saver": "0", "balanced": "0", "performance": "1"}.get(
             profile, "0"
         )
@@ -222,8 +245,10 @@ class PowerProfileController:
             if not sysfs_exists(path):
                 continue
             if sysfs_write(path, thermal_val):
-                return True
-        return False
+                ok = True
+                break
+
+        return ok
 
     def set_profile(self, profile):
         if not self.available:
@@ -274,6 +299,28 @@ class PowerProfileController:
                 }
                 self.proxy.switch_profile(mapping.get(profile, "balanced"))
                 ok = True
+            elif self.mode == "system76":
+                mapping = {
+                    "power-saver": "battery",
+                    "balanced": "balanced",
+                    "performance": "performance",
+                }
+                target = mapping.get(profile, "balanced")
+                try:
+                    res = subprocess.run(["system76-power", "profile", target], capture_output=True, text=True, timeout=2.0)
+                    if res.returncode == 0:
+                        logger.info("Successfully set system76-power profile: %s", profile)
+                        ok = True
+                    else:
+                        logger.warning("system76-power set returned non-zero: %s (stderr: %s)", res.returncode, res.stderr)
+                except Exception as e:
+                    logger.warning("Failed to run system76-power set: %s", e)
+                
+                if not ok:
+                    logger.info("system76-power backend failed for '%s', attempting omen_direct sysfs fallback", profile)
+                    if self._sync_omen_profile(profile):
+                        ok = True
+                        logger.info("omen_direct sysfs fallback succeeded for '%s'", profile)
             elif self.mode == "omen_direct":
                 if not self._sync_omen_profile(profile):
                     return False
@@ -646,18 +693,20 @@ class PowerService:
                 # AMD Curve Optimizer (Negative = Undervolt)
                 ryzen_bin = "/usr/libexec/hp-manager/ryzenadj"
                 if os.path.exists(ryzen_bin):
-                    subprocess.run([ryzen_bin, f"--curve-opt={mv}"], capture_output=True)
+                    subprocess.run([ryzen_bin, f"--curve-opt={mv}"], capture_output=True, timeout=2.0)
                 elif shutil.which("ryzenadj"):
-                    subprocess.run(["ryzenadj", f"--curve-opt={mv}"], capture_output=True)
+                    subprocess.run(["ryzenadj", f"--curve-opt={mv}"], capture_output=True, timeout=2.0)
             else:
                 # Intel Core & Cache Undervolt
                 if HAS_INTEL_UV:
+                    if not os.path.exists("/dev/cpu/0/msr"):
+                        subprocess.run(["modprobe", "msr"], capture_output=True)
                     # Apply offset to Core (0) and Cache (2)
                     off_val = intel_undervolt.convert_offset(mv)
                     intel_undervolt.write_msr(intel_undervolt.pack_offset(0, off_val), intel_undervolt.ADDRESSES.addr_voltage_offsets)
                     intel_undervolt.write_msr(intel_undervolt.pack_offset(2, off_val), intel_undervolt.ADDRESSES.addr_voltage_offsets)
                 elif shutil.which("intel-undervolt"):
-                    subprocess.run(["intel-undervolt", "apply"], capture_output=True)
+                    subprocess.run(["intel-undervolt", "apply"], capture_output=True, timeout=2.0)
         except Exception as e:
             logger.debug("Failed to apply undervolt: %s", e)
         return "OK"
@@ -676,15 +725,18 @@ class PowerService:
                 # AMD Max Temp Limit
                 ryzen_bin = "/usr/libexec/hp-manager/ryzenadj"
                 if os.path.exists(ryzen_bin):
-                    subprocess.run([ryzen_bin, f"--max-temp={100 - val}"], capture_output=True)
+                    subprocess.run([ryzen_bin, f"--tctl-temp={100 - val}"], capture_output=True, timeout=2.0)
                 elif shutil.which("ryzenadj"):
-                    subprocess.run(["ryzenadj", f"--max-temp={100 - val}"], capture_output=True)
+                    subprocess.run(["ryzenadj", f"--tctl-temp={100 - val}"], capture_output=True, timeout=2.0)
             else:
                 # Intel TCC Offset (MSR 0x1a2)
                 if HAS_INTEL_UV:
+                    if not os.path.exists("/dev/cpu/0/msr"):
+                        subprocess.run(["modprobe", "msr"], capture_output=True)
                     intel_undervolt.set_temperature(100 - val, intel_undervolt.ADDRESSES)
                 elif shutil.which("wrmsr"):
-                    subprocess.run(["wrmsr", "-a", "0x1a2", f"{val:x}000000"], capture_output=True)
+                    subprocess.run(["modprobe", "msr"], capture_output=True)
+                    subprocess.run(["wrmsr", "-a", "0x1a2", f"{val:x}000000"], capture_output=True, timeout=2.0)
         except Exception as e:
             logger.debug("Failed to apply TCC offset: %s", e)
         return "OK"
@@ -725,9 +777,9 @@ class PowerService:
             if is_amd_cpu():
                 ryzen_bin = "/usr/libexec/hp-manager/ryzenadj"
                 if os.path.exists(ryzen_bin):
-                    subprocess.run([ryzen_bin, f"--stapm-limit={pl1*1000}", f"--fast-limit={pl2*1000}", f"--slow-limit={pl1*1000}"], capture_output=True)
+                    subprocess.run([ryzen_bin, f"--stapm-limit={pl1*1000}", f"--fast-limit={pl2*1000}", f"--slow-limit={pl1*1000}"], capture_output=True, timeout=2.0)
                 elif shutil.which("ryzenadj"):
-                    subprocess.run(["ryzenadj", f"--stapm-limit={pl1*1000}", f"--fast-limit={pl2*1000}", f"--slow-limit={pl1*1000}"], capture_output=True)
+                    subprocess.run(["ryzenadj", f"--stapm-limit={pl1*1000}", f"--fast-limit={pl2*1000}", f"--slow-limit={pl1*1000}"], capture_output=True, timeout=2.0)
             else:
                 rapl1 = "/sys/class/powercap/intel-rapl/intel-rapl:0/constraint_0_power_limit_uw"
                 rapl2 = "/sys/class/powercap/intel-rapl/intel-rapl:0/constraint_1_power_limit_uw"

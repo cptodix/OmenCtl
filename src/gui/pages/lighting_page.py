@@ -416,8 +416,36 @@ class LightingPage(Gtk.Box):
         self.kb_preview.queue_draw()
 
     def _open_picker(self, btn):
-        dialog = Gtk.ColorDialog()
-        dialog.choose_rgba(self.get_root(), None, None, self._on_color_picked)
+        # Gtk.ColorDialog was added in GTK 4.10. Fall back to the deprecated
+        # Gtk.ColorChooserDialog on older GTK (e.g. Ubuntu 26.04 / GNOME 50).
+        gtk_minor = Gtk.get_minor_version()
+        if gtk_minor >= 10 and hasattr(Gtk, "ColorDialog"):
+            dialog = Gtk.ColorDialog()
+            dialog.choose_rgba(self.get_root(), None, None, self._on_color_picked)
+        else:
+            # Legacy fallback: Gtk.ColorChooserDialog (synchronous)
+            try:
+                root = self.get_root()
+                dialog = Gtk.ColorChooserDialog(title="Pick a colour", transient_for=root)
+                dialog.set_use_alpha(False)
+                dialog.connect("response", self._on_legacy_color_response)
+                dialog.present()
+            except Exception as e:
+                print(f"ColorChooserDialog failed: {e}")
+
+    def _on_legacy_color_response(self, dialog, response_id):
+        try:
+            if response_id == Gtk.ResponseType.OK:
+                c = dialog.get_rgba()
+                hex_color = f"#{int(c.red * 255):02X}{int(c.green * 255):02X}{int(c.blue * 255):02X}"
+                self._on_color(hex_color)
+        except Exception:
+            pass
+        finally:
+            dialog.destroy()
+            root = self.get_root()
+            if root:
+                root.present()
 
     def _on_color_picked(self, dialog, result):
         try:

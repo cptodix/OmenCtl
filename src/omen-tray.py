@@ -65,9 +65,11 @@ def update_state_from_dbus():
     try:
         fan_svc = get_proxy("com.yyl.hpmanager.fan")
         if fan_svc:
-            fm = fan_svc.GetFanMode()
-            if isinstance(fm, str):
-                state_cache["fan"] = fm.lower()
+            # Use GetFanInfo (JSON) — GetFanMode does not exist on the daemon
+            raw = fan_svc.GetFanInfo()
+            info = json.loads(raw)
+            fm = info.get("mode", "auto").lower()
+            state_cache["fan"] = fm
     except Exception: dbus_proxies.pop("com.yyl.hpmanager.fan", None)
     
     try:
@@ -117,12 +119,21 @@ def is_power(item):
     return state_cache["power"] == val
 
 def set_fan(icon, item):
-    val = item.text.lower()
+    # Map display text to daemon mode string
+    text = item.text.lower()
+    val_map = {
+        "max": "max",
+        "performance": "performance",
+        "auto": "auto",
+        "custom": "custom",
+    }
+    val = val_map.get(text, text)
     state_cache["fan"] = val
     run_dbus_call("com.yyl.hpmanager.fan", "SetFanMode", val)
 
 def is_fan(item):
-    return state_cache["fan"] == item.text.lower()
+    current = state_cache.get("fan", "auto")
+    return current == item.text.lower()
 
 def set_mux(icon, item):
     val = item.text.lower()
@@ -222,6 +233,7 @@ def main():
         )),
         pystray.MenuItem("Fan Mode", pystray.Menu(
             pystray.MenuItem("Max", set_fan, checked=is_fan, radio=True),
+            pystray.MenuItem("Performance", set_fan, checked=is_fan, radio=True),
             pystray.MenuItem("Auto", set_fan, checked=is_fan, radio=True),
             pystray.MenuItem("Custom", set_fan, checked=is_fan, radio=True)
         )),

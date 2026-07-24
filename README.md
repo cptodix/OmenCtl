@@ -1,4 +1,14 @@
-# OmenCtl v1.6.5
+<div align="center">
+
+```text
+   ____                        ______ __ 
+  / __ \____ ___  ___  ____   / ____// /_/ /
+ / / / / __ `__ \/ _ \/ __ \ / /    / __/ / 
+/ /_/ / / / / / /  __/ / / // /___ / /_ / / 
+\____/_/ /_/ /_/\___/_/ /_/ \____/ \__//_/  
+```
+
+</div>
 <p align="center">
   <img src="images/omenctl.png" alt="OmenCtl Logo" width="160">
 </p>
@@ -16,7 +26,7 @@
 * A compatible Linux distribution (Ubuntu, Fedora, Arch, OpenSUSE, CachyOS, etc.)
 * `git` installed
 
-### Installation (v1.6.5)
+### Installation
 Open your terminal and run:
 ```bash
 # Clone the repository
@@ -65,11 +75,16 @@ omenctl uninstall
 
 ---
 
-## 🌟 What's New in v1.6.5
+## 🌟 What's New
 
-* **Major Architectural Upgrades**: Completely refactored the D-Bus service architecture. Removed unnecessary 30-second polling loops in the MUX service, resolving D3cold (GPU suspend) issues on NVIDIA Optimus laptops.
-* **CPU & Memory Optimizations**: The UI now intelligently caches D-Bus proxies and reduces platform polling to 60 seconds (up from 2s), drastically reducing idle CPU usage and memory leaks.
-* **Refined UI/UX**: Added sleek, non-intrusive `EXPERIMENTAL` badges to the Power and Keyboard pages. The Performance page now features a real-time `Fan Control` status indicator.
+* **Power Backend Integrations**: Added native fallback support for `system76-power`, bringing compatibility up to par with `PPD` and `Tuned`.
+* **Hardware-Native Fan Control**: Reworked the proxy-based fan synchronization to directly invoke BIOS thermal profiles (`thermal_profile=1`), fixing race conditions where fans would lock at low RPMs on Windows/Linux dual boots.
+* **Intel & AMD Power Tuning Safety**: 
+  - The UI now intelligently parses Intel CPU generations, grey-listing the undervolt sliders for unsupported/locked processors (e.g., 12th+ Gen non-HX models) to prevent user confusion.
+  - Automatically loads the `msr` kernel module for Intel undervolting, fixing silent failures where sliders were moved but no voltage changes occurred.
+  - Corrected `ryzenadj` thermal arguments and disabled AMD Curve Optimizer in UI (as it requires a custom fork).
+* **New Hardware Support**: Added support for 2025 OMEN MAX (Board ID: 8D88).
+* **Refined UI/UX**: Added sleek, non-intrusive `EXPERIMENTAL` badges to the Power and Keyboard pages. Fixed missing GTK sidebar icons on minimal themes. The Performance page now features a real-time `Fan Control` status indicator.
 * **Enhanced Macro System**: You can now select applications seamlessly with a fully-featured application chooser dialog (with icons) instead of just typing commands.
 * **Localization**: Full translation coverage across all menus, with the app defaulting to English. Added proper attributions for `RyzenAdj` and `undervolt` in the Power Tuning page.
 
@@ -163,6 +178,7 @@ sudo ./setup.sh uninstall
 | **[@moong8te](https://github.com/moong8te)** | **[@Anchxt11](https://github.com/Anchxt11)** | **[@NorthSimon](https://github.com/NorthSimon)** | **[@WertC-14](https://github.com/WertC-14)** |
 | **[@FreebeamX2](https://github.com/FreebeamX2)** | **[@aacruz018-wq](https://github.com/aacruz018-wq)** | **[@ViolinKaine](https://github.com/ViolinKaine)** | **[@FDY58](https://github.com/FDY58)** |
 | **[@fkDeath](https://github.com/fkDeath)** | **[@Prajwaldark](https://github.com/Prajwaldark)** | **[@sudipta9](https://github.com/sudipta9)** | **[@AtlasCoded2026](https://github.com/AtlasCoded2026)** |
+| **[@madhan-231105](https://github.com/madhan-231105)** | | | |
 
 ---
 

@@ -77,14 +77,43 @@ class PowerPage(Gtk.Box):
 
         root.append(Gtk.Separator())
 
-        # Determine CPU Vendor for dynamic UI terminology
+        # Determine CPU Vendor and Model for compatibility
         is_amd = False
+        cpu_model = "Unknown CPU"
         try:
             with open("/proc/cpuinfo", "r") as f:
-                if "AuthenticAMD" in f.read():
-                    is_amd = True
+                for line in f:
+                    if "AuthenticAMD" in line:
+                        is_amd = True
+                    if line.startswith("model name") and cpu_model == "Unknown CPU":
+                        cpu_model = line.split(":", 1)[1].strip()
         except Exception:
             pass
+
+        # Undervolt support logic
+        uv_supported = False
+        if is_amd:
+            # The standard ryzenadj tool does not support Curve Optimizer (--curve-opt).
+            # We disable it in the UI to avoid confusion until a proper tool (e.g., amdctl or a ryzenadj fork) is supported.
+            uv_supported = False
+        else:
+            # Intel: Any CPU from Haswell (4th Gen) up to 11th Gen usually supports it.
+            # 12th Gen and newer only support it on unlocked HX/HK series.
+            import re
+            m = re.search(r'i[3579]-(\d+)', cpu_model)
+            if m:
+                gen_str = m.group(1)
+                gen = int(gen_str[0]) if len(gen_str) == 4 else int(gen_str[0:2]) if len(gen_str) == 5 else 0
+                
+                if 4 <= gen <= 11:
+                    uv_supported = True
+                elif gen >= 12:
+                    if "HX" in cpu_model or "HK" in cpu_model:
+                        uv_supported = True
+            else:
+                # Fallback for older Xeons, Core M, or unrecognized names
+                if "HX" in cpu_model or "HK" in cpu_model or "v5" in cpu_model or "v6" in cpu_model:
+                    uv_supported = True
 
         # ── UNDERVOLT CARD ──
         uv_card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=15)
@@ -101,6 +130,11 @@ class PowerPage(Gtk.Box):
         uv_info = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4, hexpand=True)
         uv_info.append(Gtk.Label(label=uv_title, xalign=0, css_classes=["title-4"]))
         uv_info.append(Gtk.Label(label=T("undervolt_desc"), xalign=0, css_classes=["dim-label"], wrap=True))
+        
+        if not uv_supported:
+            warn_lbl = Gtk.Label(label=f"Not supported by {cpu_model}", xalign=0, css_classes=["caption", "error"])
+            uv_info.append(warn_lbl)
+            
         uv_box.append(uv_info)
         
         # AMD Curve Optimizer goes negative (-30 is common), Intel is also negative (mV)
@@ -110,6 +144,10 @@ class PowerPage(Gtk.Box):
         uv_suffix = "Steps" if is_amd else "mV"
         uv_box.append(Gtk.Label(label=uv_suffix, valign=Gtk.Align.CENTER))
         uv_card.append(uv_box)
+        
+        if not uv_supported:
+            self.uv_spin.set_sensitive(False)
+            uv_card.set_sensitive(False)
         
         root.append(uv_card)
 

@@ -128,8 +128,13 @@ class FanController:
             return
         pwm_path = os.path.join(self.hwmon_path, "pwm1_enable")
         val = sysfs_read(pwm_path, 2)
+        has_pwm = sysfs_exists(os.path.join(self.hwmon_path, "pwm1"))
         if val == 0:
-            self.mode = "max"
+            # Only treat as "max" if pwm1 exists — boards without pwm1
+            # (e.g. 8934/88F8) may report 0 as a firmware default, not max.
+            if has_pwm:
+                self.mode = "max"
+            # Otherwise leave self.mode unchanged (keeps last set mode)
             return
         if val == 1:
             self.mode = "custom"
@@ -404,6 +409,7 @@ class FanService:
     <node>
       <interface name="com.yyl.hpmanager.fan">
         <method name="SetFanMode"><arg type="s" name="mode" direction="in"/><arg type="s" name="resp" direction="out"/></method>
+        <method name="GetFanMode"><arg type="s" name="mode" direction="out"/></method>
         <method name="SetFanTarget"><arg type="i" name="fan" direction="in"/><arg type="i" name="rpm" direction="in"/><arg type="s" name="resp" direction="out"/></method>
         <method name="GetFanInfo"><arg type="s" name="j" direction="out"/></method>
         <method name="SaveCustomCurve"><arg type="s" name="curve_json" direction="in"/><arg type="s" name="resp" direction="out"/></method>
@@ -631,6 +637,11 @@ class FanService:
     def GetFanInfo(self):
         with self._cache_lock:
             return json.dumps(self._fan_cache)
+
+    def GetFanMode(self):
+        """Convenience method — returns the current fan mode string."""
+        with self._cache_lock:
+            return self._fan_cache.get("mode", "auto")
 
     def SaveCustomCurve(self, curve_json):
         logger.info("SaveCustomCurve: %s", curve_json)

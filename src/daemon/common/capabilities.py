@@ -91,6 +91,7 @@ KNOWN_MODELS = {
     "8BCD": ModelCapabilities("8BCD", "OMEN by HP Gaming Laptop 16-xd0xxx", model_year=2023, family="OMEN", has_mux_switch=True, supports_fan_control_ec=False),
     "8E35": ModelCapabilities("8E35", "OMEN MAX 16t-ah000", model_year=2025, family="OMEN", has_mux_switch=True, supports_fan_control_ec=True),
     "8E41": ModelCapabilities("8E41", "OMEN MAX 16-ah0xxx", model_year=2025, family="OMEN", has_mux_switch=True, supports_fan_control_ec=False),
+    "8D88": ModelCapabilities("8D88", "OMEN MAX Gaming Laptop 16-ak0xxx", model_year=2025, family="OMEN", has_mux_switch=True, supports_fan_control_ec=False, notes="Ryzen AI 7 350 / RTX 5070 Ti. BIOS WMI GUID 1F4C91EB unbound — OS has no effective fan control; BIOS Fan Always On required"),
     "8C77": ModelCapabilities("8C77", "OMEN by HP Gaming Laptop 16-wf1xxx", model_year=2024, family="OMEN", has_mux_switch=True, supports_fan_control_ec=False),
     "8C78": ModelCapabilities("8C78", "OMEN by HP Gaming Laptop 16-wf1xxx", model_year=2024, family="OMEN", has_mux_switch=True, supports_fan_control_ec=False),
 
@@ -105,6 +106,7 @@ KNOWN_MODELS = {
     "8B19": ModelCapabilities("8B19", "Victus by HP 16-r0xxx", model_year=2023, family="Victus", has_mux_switch=True, supports_fan_control_ec=False),
     "8B1A": ModelCapabilities("8B1A", "Victus by HP 16-s0xxx", model_year=2023, family="Victus", has_mux_switch=True, supports_fan_control_ec=False),
     "8BBE": ModelCapabilities("8BBE", "Victus by HP 16-r0xxx", model_year=2023, family="Victus", has_mux_switch=True, supports_fan_control_ec=False),
+    "88F8": ModelCapabilities("88F8", "Victus by HP Laptop 16-d0xxx", model_year=2023, family="Victus", has_mux_switch=False, supports_fan_control_ec=True, notes="s2idle only — S3 sleep not available; display may not resume after suspend (NVIDIA/hybrid graphics issue)"),
     "8C9C": ModelCapabilities("8C9C", "Victus by HP Gaming Laptop 16-s1xxx", model_year=2024, family="Victus", has_mux_switch=True, supports_fan_control_ec=False),
 }
 
