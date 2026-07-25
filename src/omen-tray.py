@@ -175,6 +175,7 @@ def on_open(icon, item):
 
 def on_quit(icon, item):
     icon.stop()
+    subprocess.Popen(["omenctl", "--quit"])
 
 def bg_updater():
     while True:
@@ -208,6 +209,14 @@ def macro_listener_loop():
         print(f"Failed to setup macro listener: {e}")
 
 def main():
+    import fcntl
+    lock_file = os.path.expanduser("~/.cache/omen-tray.lock")
+    try:
+        lock_fp = open(lock_file, "w")
+        fcntl.flock(lock_fp, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except IOError:
+        sys.exit(0)
+
     icon_path = "/usr/share/icons/hicolor/48x48/apps/omenctl.png"
     if not os.path.exists(icon_path):
         icon_path = "/usr/share/hp-manager/images/omenctl.png"

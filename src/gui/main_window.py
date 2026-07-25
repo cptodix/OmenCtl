@@ -2122,7 +2122,7 @@ class HPManagerWindow(Gtk.ApplicationWindow):
             ("power",     self.page_titles["power"],     "battery-symbolic"),
             ("keyboard",  self.page_titles["keyboard"],  "preferences-desktop-keyboard-symbolic"),
             ("app_profiles", self.page_titles["app_profiles"], "applications-system-symbolic"),
-            ("mux",       "MUX",                        "video-display-symbolic"),
+            ("mux",       "MUX",                        "display-symbolic"),
         ]
 
         self.nav_indicators = {}
@@ -3025,36 +3025,107 @@ class HPManagerWindow(Gtk.ApplicationWindow):
     # ── Daemon connection ─────────────────────────────────────────────────────
 
     def _connect_daemon(self):
+        """Connect to all D-Bus daemon services.
+
+        On first invocation (typically at startup or right after install) some
+        services may not yet be ready — each systemd unit has a 2-second
+        ExecStartPre sleep.  We therefore keep track of which services are still
+        missing and schedule a retry every 5 seconds for up to 60 seconds (12
+        attempts) so the GUI becomes fully functional without requiring a reboot.
+        """
+        if not hasattr(self, "_daemon_retry_count"):
+            self._daemon_retry_count = 0
+        if not hasattr(self, "_daemon_retry_timer"):
+            self._daemon_retry_timer = None
+
         try:
             from pydbus import SystemBus
             bus = SystemBus()
-            self.services = {}
-            for name in ("fan", "rgb", "power", "mux", "platform"):
-                try:
-                    self.services[name] = bus.get(f"com.yyl.hpmanager.{name}")
-                except Exception as e:
-                    print(f"⚠ {name} service unavailable: {e}")
-                    self.services[name] = None
-            
-            self.ready = True
-            self.fan_page.set_service(self.services["fan"])
-            self.fan_page.set_platform_service(self.services["platform"])
-            self.fan_page.set_power_service(self.services["power"])
-            self.fan_page.set_rgb_service(self.services["rgb"])
-            self.lighting_page.set_service(self.services["rgb"])
-            if hasattr(self, 'power_page'):
-                self.power_page.set_service(self.services["power"])
-            if hasattr(self, 'keyboard_page'):
-                self.keyboard_page.set_service(self.services["platform"])
-            if hasattr(self, 'app_profiles_page'):
-                self.app_profiles_page.set_power_service(self.services["power"])
-            self.mux_page.set_service(self.services["mux"])
-            self.settings_page.set_service(self.services["mux"])
-            print("Daemon connected")
-            self._refresh_launcher_metrics()
         except Exception as e:
-            print(f"⚠ Daemon connection failed: {e}")
-            print("  Application will run without daemon support.")
+            print(f"⚠ Cannot connect to D-Bus: {e}")
+            self._schedule_daemon_retry()
+            return
+
+        if not hasattr(self, "services") or self.services is None:
+            self.services = {}
+
+        # Only (re-)connect services that are not yet available
+        missing_after = []
+        for name in ("fan", "rgb", "power", "mux", "platform"):
+            if self.services.get(name) is not None:
+                continue  # already connected
+            try:
+                self.services[name] = bus.get(f"com.yyl.hpmanager.{name}")
+                print(f"✓ {name} service connected")
+            except Exception as e:
+                print(f"⚠ {name} service unavailable: {e}")
+                self.services[name] = None
+                missing_after.append(name)
+
+        # Push available services to pages regardless of whether all are up
+        self._apply_services_to_pages()
+
+        if missing_after:
+            self._schedule_daemon_retry()
+        else:
+            # All services up — cancel any pending retry timer
+            self._cancel_daemon_retry()
+            print("All daemon services connected.")
+            self._refresh_launcher_metrics()
+
+    def _apply_services_to_pages(self):
+        """Push currently-available services to their respective pages."""
+        svcs = getattr(self, "services", {}) or {}
+        self.ready = any(v is not None for v in svcs.values())
+
+        if hasattr(self, "fan_page") and self.fan_page is not None:
+            self.fan_page.set_service(svcs.get("fan"))
+            self.fan_page.set_platform_service(svcs.get("platform"))
+            self.fan_page.set_power_service(svcs.get("power"))
+            self.fan_page.set_rgb_service(svcs.get("rgb"))
+        if hasattr(self, "lighting_page") and self.lighting_page is not None:
+            self.lighting_page.set_service(svcs.get("rgb"))
+        if hasattr(self, "power_page") and self.power_page is not None:
+            self.power_page.set_service(svcs.get("power"))
+        if hasattr(self, "keyboard_page") and self.keyboard_page is not None:
+            self.keyboard_page.set_service(svcs.get("platform"))
+        if hasattr(self, "app_profiles_page") and self.app_profiles_page is not None:
+            self.app_profiles_page.set_power_service(svcs.get("power"))
+        if hasattr(self, "mux_page") and self.mux_page is not None:
+            self.mux_page.set_service(svcs.get("mux"))
+        if hasattr(self, "settings_page") and self.settings_page is not None:
+            self.settings_page.set_service(svcs.get("mux"))
+        self._refresh_launcher_metrics()
+
+    def _schedule_daemon_retry(self):
+        """Schedule a single retry attempt in 5 seconds (max 12 attempts)."""
+        MAX_RETRIES = 12
+        RETRY_INTERVAL_MS = 5000
+
+        self._daemon_retry_count = getattr(self, "_daemon_retry_count", 0) + 1
+        if self._daemon_retry_count > MAX_RETRIES:
+            print("⚠ Daemon retry limit reached. Some services may be unavailable.")
+            print("  If this is a fresh install, a reboot may still be required for kernel modules.")
+            return
+
+        print(f"  Retry {self._daemon_retry_count}/{MAX_RETRIES} in {RETRY_INTERVAL_MS // 1000}s…")
+        self._daemon_retry_timer = GLib.timeout_add(RETRY_INTERVAL_MS, self._daemon_retry_tick)
+
+    def _cancel_daemon_retry(self):
+        """Cancel any pending retry timer."""
+        tid = getattr(self, "_daemon_retry_timer", None)
+        if tid is not None:
+            try:
+                GLib.source_remove(tid)
+            except Exception:
+                pass
+            self._daemon_retry_timer = None
+
+    def _daemon_retry_tick(self):
+        """Called by the GLib timer; trigger a retry and return False to cancel timer."""
+        self._daemon_retry_timer = None  # timer fired, clear handle
+        self._connect_daemon()
+        return GLib.SOURCE_REMOVE
 
     def _set_performance_mode(self, profile):
         mode_map = {
@@ -3571,6 +3642,9 @@ class HPManagerWindow(Gtk.ApplicationWindow):
             self.set_visible(False)
             return True
 
+        # Cancel daemon retry timer if active
+        self._cancel_daemon_retry()
+
         self._clear_scroll_tracking()
         if self._ui_scale_tick_id:
             try:
@@ -3592,6 +3666,13 @@ class HPManagerWindow(Gtk.ApplicationWindow):
                     page.cleanup()
                 except Exception as e:
                     print(f"Cleanup error for {attr}: {e}")
+        # Terminate tray icon process when the application fully quits
+        if app is not None and getattr(app, "tray_proc", None) is not None:
+            try:
+                app.tray_proc.terminate()
+                app.tray_proc = None
+            except Exception:
+                pass
         try:
             app.quit()
         except Exception as e:
@@ -3616,17 +3697,38 @@ class HPManagerApp(Adw.Application if HAS_ADW else Gtk.Application):
             if hasattr(self, 'win'):
                 self.win.force_quit = True
                 self.win.close()
+            # Terminate tray process
             if self.tray_proc:
-                try: self.tray_proc.terminate()
-                except: pass
+                try:
+                    self.tray_proc.terminate()
+                    self.tray_proc = None
+                except Exception:
+                    pass
+            # Also kill any stray omen-tray processes not tracked by us
+            try:
+                subprocess.run(["pkill", "-f", "omen-tray.py"], check=False)
+            except Exception:
+                pass
             self.quit()
             return 0
 
         if not hasattr(self, 'win'):
             print("Initializing window...", flush=True)
-            self.hold() # Ensure application remains running in background when hidden
+            self.hold()  # Ensure application remains running in background when hidden
             self.win = HPManagerWindow(application=app)
             if shutil.which("omen-tray"):
+                # Kill any pre-existing stray tray process before starting a new one
+                try:
+                    subprocess.run(["pkill", "-f", "omen-tray.py"], check=False)
+                except Exception:
+                    pass
+                # Also clear the lock file so the new instance can acquire it
+                lock_file = os.path.expanduser("~/.cache/omen-tray.lock")
+                try:
+                    if os.path.exists(lock_file):
+                        os.remove(lock_file)
+                except Exception:
+                    pass
                 try:
                     self.tray_proc = subprocess.Popen(["omen-tray"])
                 except Exception as e:

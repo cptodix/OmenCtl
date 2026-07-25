@@ -94,7 +94,7 @@ class MUXPage(Gtk.Box):
 
     # ── UI construction ───────────────────────────────────────────────────────
     def _build_ui(self):
-        dyn_igpu, dyn_dgpu = self._detect_gpus()
+        _dyn_igpu, dyn_dgpu = self._detect_gpus()
 
         title = Gtk.Label(label=T("mux_switch"), xalign=0)
         title.add_css_class("page-title")
@@ -112,7 +112,7 @@ class MUXPage(Gtk.Box):
             gpu_card.add_css_class("card")
 
             gpu_header = Gtk.Box(spacing=10)
-            gpu_header.append(Gtk.Image.new_from_icon_name("video-display-symbolic"))
+            gpu_header.append(Gtk.Image.new_from_icon_name("display-symbolic"))
             gpu_header.append(Gtk.Label(label=T("gpu_info"),
                                         css_classes=["section-title"]))
             gpu_card.append(gpu_header)
@@ -139,7 +139,7 @@ class MUXPage(Gtk.Box):
         card.add_css_class("card")
 
         header = Gtk.Box(spacing=10)
-        header.append(Gtk.Image.new_from_icon_name("video-display-symbolic"))
+        header.append(Gtk.Image.new_from_icon_name("display-symbolic"))
         header.append(Gtk.Label(label=T("gpu_mode"), css_classes=["section-title"]))
         card.append(header)
 
@@ -147,53 +147,7 @@ class MUXPage(Gtk.Box):
                                halign=Gtk.Align.CENTER)
         self.mode_buttons: dict = {}
 
-        # Integrated
-        self.igpu_outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL,
-                                  spacing=10, halign=Gtk.Align.CENTER)
-        igpu_icon = Gtk.Image.new_from_icon_name("battery-symbolic")
-        igpu_icon.set_pixel_size(80)
-        igpu_icon.set_halign(Gtk.Align.CENTER)
-        self._igpu_icon = igpu_icon
-        self.btn_igpu = Gtk.ToggleButton(child=igpu_icon)
-        self.btn_igpu.add_css_class("mux-btn")
-        self.btn_igpu.connect("toggled",
-            lambda w: self._on_mode_select("integrated") if w.get_active() else None)
-        self.igpu_outer.append(self.btn_igpu)
-        self.igpu_outer.append(Gtk.Label(label=T("integrated"),
-                                         css_classes=["stat-big"]))
-        desc = Gtk.Label(label=dyn_igpu)
-        desc.set_justify(Gtk.Justification.CENTER)
-        desc.add_css_class("stat-lbl")
-        self.igpu_outer.append(desc)
-        self.mux_box.append(self.igpu_outer)
-        self.mode_buttons["integrated"] = self.btn_igpu
-        self.mode_buttons["intel"]      = self.btn_igpu
-
-        # Discrete
-        self.dgpu_outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL,
-                                  spacing=10, halign=Gtk.Align.CENTER)
-        dgpu_icon = Gtk.Image.new_from_icon_name("video-display-symbolic")
-        dgpu_icon.set_pixel_size(80)
-        dgpu_icon.set_halign(Gtk.Align.CENTER)
-        self._dgpu_icon = dgpu_icon
-        self.btn_dgpu = Gtk.ToggleButton(child=dgpu_icon)
-        self.btn_dgpu.add_css_class("mux-btn")
-        self.btn_dgpu.set_group(self.btn_igpu)
-        self.btn_dgpu.connect("toggled",
-            lambda w: self._on_mode_select("discrete") if w.get_active() else None)
-        self.dgpu_outer.append(self.btn_dgpu)
-        self.dgpu_outer.append(Gtk.Label(label=T("discrete"),
-                                         css_classes=["stat-big"]))
-        desc2 = Gtk.Label(label=dyn_dgpu)
-        desc2.set_justify(Gtk.Justification.CENTER)
-        desc2.add_css_class("stat-lbl")
-        self.dgpu_outer.append(desc2)
-        self.mux_box.append(self.dgpu_outer)
-        self.mode_buttons["discrete"]  = self.btn_dgpu
-        self.mode_buttons["dedicated"] = self.btn_dgpu
-        self.mode_buttons["nvidia"]    = self.btn_dgpu
-
-        # Hybrid
+        # ── Hybrid (group anchor) ──────────────────────────────────────────────
         self.hybrid_outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL,
                                     spacing=10, halign=Gtk.Align.CENTER)
         hybrid_icon = Gtk.Image.new_from_icon_name("preferences-system-symbolic")
@@ -201,19 +155,42 @@ class MUXPage(Gtk.Box):
         self._hybrid_icon = hybrid_icon
         self.btn_hybrid = Gtk.ToggleButton(child=hybrid_icon)
         self.btn_hybrid.add_css_class("mux-btn")
-        self.btn_hybrid.set_group(self.btn_igpu)
         self.btn_hybrid.connect("toggled",
             lambda w: self._on_mode_select("hybrid") if w.get_active() else None)
         self.hybrid_outer.append(self.btn_hybrid)
         self.hybrid_outer.append(Gtk.Label(label=T("hybrid"),
                                            css_classes=["stat-big"]))
-        desc3 = Gtk.Label(label=T("hybrid_desc"))
-        desc3.set_justify(Gtk.Justification.CENTER)
-        desc3.add_css_class("stat-lbl")
-        self.hybrid_outer.append(desc3)
+        desc_hybrid = Gtk.Label(label=T("hybrid_desc"))
+        desc_hybrid.set_justify(Gtk.Justification.CENTER)
+        desc_hybrid.add_css_class("stat-lbl")
+        self.hybrid_outer.append(desc_hybrid)
         self.mux_box.append(self.hybrid_outer)
         self.mode_buttons["hybrid"]    = self.btn_hybrid
         self.mode_buttons["on-demand"] = self.btn_hybrid
+
+        # ── Discrete ──────────────────────────────────────────────────────────
+        self.dgpu_outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL,
+                                  spacing=10, halign=Gtk.Align.CENTER)
+        dgpu_icon = Gtk.Image.new_from_icon_name("display-symbolic")
+        dgpu_icon.set_pixel_size(80)
+        dgpu_icon.set_halign(Gtk.Align.CENTER)
+        self._dgpu_icon = dgpu_icon
+        self.btn_dgpu = Gtk.ToggleButton(child=dgpu_icon)
+        self.btn_dgpu.add_css_class("mux-btn")
+        self.btn_dgpu.set_group(self.btn_hybrid)  # Hybrid is group anchor
+        self.btn_dgpu.connect("toggled",
+            lambda w: self._on_mode_select("discrete") if w.get_active() else None)
+        self.dgpu_outer.append(self.btn_dgpu)
+        self.dgpu_outer.append(Gtk.Label(label=T("discrete"),
+                                         css_classes=["stat-big"]))
+        desc_dgpu = Gtk.Label(label=dyn_dgpu)
+        desc_dgpu.set_justify(Gtk.Justification.CENTER)
+        desc_dgpu.add_css_class("stat-lbl")
+        self.dgpu_outer.append(desc_dgpu)
+        self.mux_box.append(self.dgpu_outer)
+        self.mode_buttons["discrete"]  = self.btn_dgpu
+        self.mode_buttons["dedicated"] = self.btn_dgpu
+        self.mode_buttons["nvidia"]    = self.btn_dgpu
 
         card.append(self.mux_box)
 
@@ -323,12 +300,12 @@ class MUXPage(Gtk.Box):
         self.mux_box.set_spacing(12 if bucket == "compact" else 26 if bucket == "spacious" else 20)
 
         icon_size = 64 if bucket == "compact" else 92 if bucket == "spacious" else 80
-        for icon in (getattr(self, "_igpu_icon", None), getattr(self, "_dgpu_icon", None), getattr(self, "_hybrid_icon", None)):
+        for icon in (getattr(self, "_dgpu_icon", None), getattr(self, "_hybrid_icon", None)):
             if icon is not None:
                 icon.set_pixel_size(icon_size)
 
         btn_size = 72 if bucket == "compact" else 96 if bucket == "spacious" else 84
-        for mode in ("integrated", "discrete", "hybrid"):
+        for mode in ("discrete", "hybrid"):
             btn = self.mode_buttons.get(mode)
             if btn is not None:
                 btn.set_size_request(btn_size, btn_size)
@@ -398,7 +375,6 @@ class MUXPage(Gtk.Box):
             "hybrid":     "hybrid",    "on-demand":  "hybrid",
             "discrete":   "discrete",  "dedicated":  "discrete",
             "nvidia":     "discrete",
-            "integrated": "integrated","intel":      "integrated",
         }
         mapped = mode_map.get(self.current_mode, self.current_mode)
         if mapped in self.mode_buttons:
@@ -447,7 +423,6 @@ class MUXPage(Gtk.Box):
                     "hybrid":     "hybrid",    "on-demand":  "hybrid",
                     "discrete":   "discrete",  "dedicated":  "discrete",
                     "nvidia":     "discrete",
-                    "integrated": "integrated","intel":      "integrated",
                 }
                 mapped = mode_map.get(self.current_mode, self.current_mode)
                 if mapped in self.mode_buttons:

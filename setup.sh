@@ -95,10 +95,10 @@ msg() {
             "rgb_driver_note")      printf '%s\n' "  ⚠  Bu sürücü klavye RGB aydınlatma kontrolü için ZORUNLUDUR." ;;
             "rgb_driver_choice")    printf '%s' "hp-rgb-lighting yüklensin mi? (y/N): " ;;
             "rgb_driver_skipped")   printf '%s\n' "hp-rgb-lighting kurulumu atlanıyor. Klavye RGB aydınlatma kontrolü kullanılamayacak." ;;
-            "wmi_driver_prompt")    printf '%s\n' "Yamalı hp-wmi sürücüsünü yüklemek istiyor musunuz?" ;;
-            "wmi_driver_note")      printf '%s\n' "  Kernel sürümünüz 7.0 altında — fan/ısıl kontrol için bu sürücü gereklidir." ;;
-            "wmi_driver_choice")    printf '%s' "Yamalı hp-wmi yüklensin mi? (y/N): " ;;
-            "wmi_driver_skipped")   printf '%s\n' "Yamalı hp-wmi kurulumu atlanıyor." ;;
+            "wmi_driver_prompt")    printf '%s\n' "Özel hp-wmi sürücüsünü yüklemek istiyor musunuz?" ;;
+            "wmi_driver_note")      printf '%s\n' "  Sisteminizdeki standart sürüm fanları kontrol edemiyorsa bu sürücü gereklidir." ;;
+            "wmi_driver_choice")    printf '%s' "Özel hp-wmi yüklensin mi? (Y/n): " ;;
+            "wmi_driver_skipped")   printf '%s\n' "Özel hp-wmi kurulumu atlanıyor." ;;
             "help_title")           printf '%s\n' "Komutlar:" ;;
             "help_install")         printf '%s\n' "  install    - Uygulama ve kernel sürücüsünün tam kurulumu" ;;
             "help_uninstall")       printf '%s\n' "  uninstall  - Uygulama ve sürücünün tamamen kaldırılması (ayarlar korunur)" ;;
@@ -144,10 +144,10 @@ msg() {
             "rgb_driver_note")      printf '%s\n' "  ⚠  This driver is REQUIRED for keyboard RGB lighting control." ;;
             "rgb_driver_choice")    printf '%s' "Install hp-rgb-lighting? (y/N): " ;;
             "rgb_driver_skipped")   printf '%s\n' "Skipping hp-rgb-lighting installation. Keyboard RGB lighting control will not be available." ;;
-            "wmi_driver_prompt")    printf '%s\n' "Do you want to install the patched hp-wmi driver?" ;;
-            "wmi_driver_note")      printf '%s\n' "  Your kernel is below 7.0 — this driver is needed for fan/thermal control." ;;
-            "wmi_driver_choice")    printf '%s' "Install patched hp-wmi? (y/N): " ;;
-            "wmi_driver_skipped")   printf '%s\n' "Skipping patched hp-wmi installation." ;;
+            "wmi_driver_prompt")    printf '%s\n' "Do you want to install the custom hp-wmi driver?" ;;
+            "wmi_driver_note")      printf '%s\n' "  This driver is needed if the stock kernel driver cannot control your fans." ;;
+            "wmi_driver_choice")    printf '%s' "Install custom hp-wmi? (Y/n): " ;;
+            "wmi_driver_skipped")   printf '%s\n' "Skipping custom hp-wmi installation." ;;
             "help_title")           printf '%s\n' "Commands:" ;;
             "help_install")         printf '%s\n' "  install    - Full installation of application and kernel driver" ;;
             "help_uninstall")       printf '%s\n' "  uninstall  - Complete removal of application and driver (keeps config)" ;;
@@ -349,26 +349,24 @@ manage_driver() {
                 warn "$(msg rgb_driver_skipped)"
             fi
 
-            # ── Prompt 2: patched hp-wmi (only when kernel < 7.0 or special board) ──
+            # ── Prompt 2: patched hp-wmi (always asked regardless of kernel) ──
             local install_wmi=false
-            if ! $stock_fan_support; then
-                printf '\n%s\n' "--------------------------------------------------------"
-                msg wmi_driver_prompt
-                msg wmi_driver_note
-                printf '%s\n' "--------------------------------------------------------"
-                if [ "${NON_INTERACTIVE:-false}" = true ]; then
-                    info "Non-interactive mode: automatically selecting Yes for patched hp-wmi"
-                    wmi_choice="y"
-                else
-                    msg wmi_driver_choice
-                    read -r wmi_choice
-                fi
+            printf '\n%s\n' "--------------------------------------------------------"
+            msg wmi_driver_prompt
+            msg wmi_driver_note
+            printf '%s\n' "--------------------------------------------------------"
+            if [ "${NON_INTERACTIVE:-false}" = true ]; then
+                info "Non-interactive mode: automatically selecting Yes for patched hp-wmi"
+                wmi_choice="y"
+            else
+                msg wmi_driver_choice
+                read -r wmi_choice
+            fi
 
-                if [[ "$wmi_choice" =~ ^[Yy]$ ]]; then
-                    install_wmi=true
-                else
-                    info "$(msg wmi_driver_skipped)"
-                fi
+            if [[ "$wmi_choice" =~ ^[Yy]$ ]]; then
+                install_wmi=true
+            else
+                info "$(msg wmi_driver_skipped)"
             fi
 
             # Nothing selected — skip driver installation entirely
@@ -376,7 +374,11 @@ manage_driver() {
                 return
             fi
 
-            # When only RGB was requested (kernel < 7.0 case), force rgb-only mode
+            if $install_wmi; then
+                export FORCE_CUSTOM_HPWMI=true
+            fi
+
+            # When only RGB was requested, force rgb-only mode
             if $install_rgb && ! $install_wmi; then
                 export FORCE_RGB_ONLY=true
             fi
@@ -409,6 +411,9 @@ manage_driver() {
                 esac
                 if [ "${FORCE_RGB_ONLY:-false}" = true ]; then
                     stock_fan_support=true
+                fi
+                if [ "${FORCE_CUSTOM_HPWMI:-false}" = true ]; then
+                    stock_fan_support=false
                 fi
 
                 if $stock_fan_support; then
@@ -774,6 +779,13 @@ OMENCTL_LINK="/usr/bin/omenctl"
 CLI_LINK="/usr/bin/omen"
 UNINSTALLER_LINK="/usr/bin/hp-manager-uninstall"
 
+echo "Stopping running OmenCtl processes..."
+pkill -f 'omenctl'        2>/dev/null || true
+pkill -f 'omen-tray.py'   2>/dev/null || true
+pkill -f 'main_window.py' 2>/dev/null || true
+rm -f /home/*/.cache/omen-tray.lock 2>/dev/null || true
+sleep 1
+
 echo "Stopping and disabling services..."
 systemctl stop    hp-manager.service com.yyl.hpmanager.service 2>/dev/null || true
 systemctl disable hp-manager.service com.yyl.hpmanager.service 2>/dev/null || true
@@ -834,6 +846,7 @@ for svc in fan rgb power mux platform; do
 done
 rm -f /usr/share/applications/com.yyl.hpmanager.desktop
 rm -f /etc/xdg/autostart/omenctl-bg.desktop
+rm -f /etc/xdg/autostart/omen-tray.desktop
 rm -f /usr/share/icons/hicolor/48x48/apps/omenctl.png
 rm -f /etc/modules-load.d/hp-rgb-lighting.conf
 rm -f /etc/modules-load.d/hp-wmi.conf
@@ -889,6 +902,15 @@ do_uninstall() {
     check_root
     info "$(msg uninstalling)"
 
+    # Kill running GUI and tray processes before removing files
+    info "Stopping running OmenCtl processes..."
+    pkill -f 'omenctl'       2>/dev/null || true
+    pkill -f 'omen-tray.py'  2>/dev/null || true
+    pkill -f 'main_window.py' 2>/dev/null || true
+    # Remove tray lock file so it won't block a fresh start later
+    rm -f /home/*/.cache/omen-tray.lock 2>/dev/null || true
+    sleep 1  # Give processes a moment to exit cleanly
+
     systemctl stop    hp-manager.service com.yyl.hpmanager.service 2>/dev/null || true
     systemctl disable hp-manager.service com.yyl.hpmanager.service 2>/dev/null || true
     for svc in fan rgb power mux platform; do
@@ -906,6 +928,7 @@ do_uninstall() {
     rm -f "/usr/bin/omen-tray"
     rm -f "$UNINSTALLER_LINK"
     rm -f /etc/xdg/autostart/omenctl-bg.desktop
+    rm -f /etc/xdg/autostart/omen-tray.desktop
     rm -rf "$INSTALL_DIR"
     rm -rf "$DATA_DIR"
     rm -rf "/var/lib/hp-manager"
@@ -943,6 +966,13 @@ do_update() {
     # ── 2. Nuke EVERYTHING from previous installs ─────────────────────────
 
     info "Stopping all services..."
+    # Kill running GUI and tray processes first
+    pkill -f 'omenctl'        2>/dev/null || true
+    pkill -f 'omen-tray.py'   2>/dev/null || true
+    pkill -f 'main_window.py' 2>/dev/null || true
+    rm -f /home/*/.cache/omen-tray.lock 2>/dev/null || true
+    sleep 1
+
     systemctl stop    hp-manager.service com.yyl.hpmanager.service 2>/dev/null || true
     systemctl disable hp-manager.service com.yyl.hpmanager.service 2>/dev/null || true
     systemctl stop    omen-command-center.service 2>/dev/null || true
