@@ -3687,6 +3687,7 @@ class HPManagerApp(Adw.Application if HAS_ADW else Gtk.Application):
         super().__init__(**kwargs)
         self.connect('command-line', self._on_command_line)
         self.tray_proc = None
+        self._tray_watchdog_id = None
 
     def _on_command_line(self, app, cmdline):
         args = cmdline.get_arguments()
@@ -3694,6 +3695,8 @@ class HPManagerApp(Adw.Application if HAS_ADW else Gtk.Application):
         is_quit = "--quit" in args
 
         if is_quit:
+            # Stop watchdog first so it won't restart the tray we're about to kill
+            self._stop_tray_watchdog()
             if hasattr(self, 'win'):
                 self.win.force_quit = True
                 self.win.close()
@@ -3704,7 +3707,7 @@ class HPManagerApp(Adw.Application if HAS_ADW else Gtk.Application):
                     self.tray_proc = None
                 except Exception:
                     pass
-            # Also kill any stray omen-tray processes not tracked by us
+            # Kill any stray omen-tray processes not tracked by us
             try:
                 subprocess.run(["pkill", "-f", "omen-tray.py"], check=False)
             except Exception:
@@ -3714,30 +3717,68 @@ class HPManagerApp(Adw.Application if HAS_ADW else Gtk.Application):
 
         if not hasattr(self, 'win'):
             print("Initializing window...", flush=True)
-            self.hold()  # Ensure application remains running in background when hidden
+            self.hold()  # Keep app alive in background when hidden
             self.win = HPManagerWindow(application=app)
-            if shutil.which("omen-tray"):
-                # Kill any pre-existing stray tray process before starting a new one
-                try:
-                    subprocess.run(["pkill", "-f", "omen-tray.py"], check=False)
-                except Exception:
-                    pass
-                # Also clear the lock file so the new instance can acquire it
-                lock_file = os.path.expanduser("~/.cache/omen-tray.lock")
-                try:
-                    if os.path.exists(lock_file):
-                        os.remove(lock_file)
-                except Exception:
-                    pass
-                try:
-                    self.tray_proc = subprocess.Popen(["omen-tray"])
-                except Exception as e:
-                    print(f"Failed to start tray process: {e}")
+            self._start_tray()
+            self._start_tray_watchdog()
 
         if not is_hidden:
             self.win.present()
 
         return 0
+
+    # ── Tray lifecycle ────────────────────────────────────────────────────────
+
+    def _start_tray(self):
+        """Launch the tray icon process, killing any stale instance first."""
+        if not shutil.which("omen-tray"):
+            return
+        # Kill any pre-existing stray tray process
+        try:
+            subprocess.run(["pkill", "-f", "omen-tray.py"], check=False)
+        except Exception:
+            pass
+        # Clear lock file so the new instance can acquire it
+        lock_file = os.path.expanduser("~/.cache/omen-tray.lock")
+        try:
+            if os.path.exists(lock_file):
+                os.remove(lock_file)
+        except Exception:
+            pass
+        try:
+            self.tray_proc = subprocess.Popen(["omen-tray"])
+            print("Tray icon started.", flush=True)
+        except Exception as e:
+            print(f"Failed to start tray process: {e}")
+
+    def _start_tray_watchdog(self):
+        """Start a 10-second periodic check to keep the tray icon alive."""
+        if self._tray_watchdog_id is not None:
+            return  # already running
+        self._tray_watchdog_id = GLib.timeout_add(10_000, self._tray_watchdog_tick)
+
+    def _stop_tray_watchdog(self):
+        """Cancel the watchdog timer."""
+        if self._tray_watchdog_id is not None:
+            try:
+                GLib.source_remove(self._tray_watchdog_id)
+            except Exception:
+                pass
+            self._tray_watchdog_id = None
+
+    def _tray_watchdog_tick(self):
+        """Called every 10 s — restart tray if it has died."""
+        # Stop if app is shutting down
+        if getattr(getattr(self, "win", None), "force_quit", False):
+            self._tray_watchdog_id = None
+            return GLib.SOURCE_REMOVE
+
+        proc = getattr(self, "tray_proc", None)
+        if proc is None or proc.poll() is not None:
+            print("Tray process died — restarting...", flush=True)
+            self._start_tray()
+
+        return GLib.SOURCE_CONTINUE
 
 
 def main():
