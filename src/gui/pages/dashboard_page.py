@@ -9,6 +9,7 @@ import gi, math, json, subprocess, os, shutil, threading, concurrent.futures
 
 gi.require_version("Gtk", "4.0")
 from gi.repository import Gtk, GLib, Gdk
+from components.custom_widgets import TemperatureRing, CPUSparkline, ResourceBox
 from widgets.smooth_scroll import SmoothScrolledWindow
 import cairo
 
@@ -22,7 +23,17 @@ def T(key):
 # ═════════════════════════════════════════════════════════════════════════════
 _TWO_PI = 2 * math.pi
 
+_NVIDIA_SMI = None
+_DBUS_TIMEOUT = 5
+_dbus_pool = concurrent.futures.ThreadPoolExecutor(max_workers=2, thread_name_prefix="dash-dbus")
 
+def _dbus_call(fn, *args, timeout=_DBUS_TIMEOUT):
+    fut = _dbus_pool.submit(fn, *args)
+    try:
+        return fut.result(timeout=timeout)
+    except Exception as e:
+        print(f"⚠ Dash D-Bus call failed: {e}")
+        return None
 class DashboardPage(Gtk.Box):
     """Main dashboard: 4-pane grid with info bar."""
 
