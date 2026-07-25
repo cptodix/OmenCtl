@@ -52,6 +52,9 @@ class NativeWmiMuxController:
         if not self.is_available():
             return "unknown"
             
+        if self._cached_mode != "unknown":
+            return self._cached_mode
+            
         try:
             # First, check DRM display outputs to see if internal display is connected to NVIDIA
             # This is much more reliable on modern laptops where both GPUs remain on the PCIe bus
@@ -137,8 +140,11 @@ class MUXService:
         self._config = ServiceConfig("mux", {"mux_backend": "auto"})
         self._config.load()
         self._cache_lock = threading.Lock()
+        self._displays_cache = None
         
     def _get_displays(self):
+        if self._displays_cache is not None:
+            return self._displays_cache
         import glob, os
         conns = []
         vendors = {"0x10de": "NVIDIA", "0x8086": "Intel", "0x1002": "AMD"}
@@ -159,6 +165,7 @@ class MUXService:
                             conns.append({"display": disp_name, "gpu": vendor_name})
                 except Exception:
                     pass
+        self._displays_cache = conns
         return conns
 
     def _get_current_info(self):

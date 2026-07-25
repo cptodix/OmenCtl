@@ -56,7 +56,9 @@ def update_state_from_dbus():
     try:
         power_svc = get_proxy("com.yyl.hpmanager.power")
         if power_svc:
-            prof = power_svc.GetPowerProfile().lower()
+            raw = power_svc.GetPowerProfile()
+            info = json.loads(raw)
+            prof = info.get("active", "balanced").lower()
             if prof == "default": prof = "balanced"
             elif prof == "cool": prof = "power-saver"
             state_cache["power"] = prof
@@ -65,18 +67,14 @@ def update_state_from_dbus():
     try:
         fan_svc = get_proxy("com.yyl.hpmanager.fan")
         if fan_svc:
-            # Use GetFanInfo (JSON) — GetFanMode does not exist on the daemon
-            raw = fan_svc.GetFanInfo()
-            info = json.loads(raw)
-            fm = info.get("mode", "auto").lower()
-            state_cache["fan"] = fm
+            state_cache["fan"] = fan_svc.GetFanMode().lower()
     except Exception: dbus_proxies.pop("com.yyl.hpmanager.fan", None)
     
     try:
         mux_svc = get_proxy("com.yyl.hpmanager.mux")
         if mux_svc:
-            state_cache["mux"] = mux_svc.GetGpuMode().lower()
             info = json.loads(mux_svc.GetGpuInfo())
+            state_cache["mux"] = info.get("mode", "hybrid").lower()
             state_cache["mux_available"] = info.get("available", False)
     except Exception: dbus_proxies.pop("com.yyl.hpmanager.mux", None)
 
@@ -249,7 +247,7 @@ def main():
         pystray.MenuItem("GPU Mode", pystray.Menu(
             pystray.MenuItem("Hybrid", set_mux, checked=is_mux, radio=True),
             pystray.MenuItem("Discrete", set_mux, checked=is_mux, radio=True)
-        ), visible=lambda item: state_cache.get("mux_available", False)),
+        )),
         pystray.MenuItem("Keyboard Lighting", pystray.Menu(
             pystray.MenuItem("Off", set_color, checked=is_color, radio=True),
             pystray.MenuItem("Red", set_color, checked=is_color, radio=True),

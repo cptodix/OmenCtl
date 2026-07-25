@@ -591,9 +591,9 @@ class FanService:
 
             fans_data = {
                 str(i): {
-                    "current": self._fan.get_current_speed(i),
+                    "current": 0,
                     "max": self._fan.get_max_speed(i),
-                    "target": self._fan.get_target_speed(i),
+                    "target": 0,
                 }
                 for i in self._fan.found_fans
             }
@@ -636,7 +636,16 @@ class FanService:
 
     def GetFanInfo(self):
         with self._cache_lock:
-            return json.dumps(self._fan_cache)
+            snapshot = dict(self._fan_cache)
+            snapshot["fans"] = {k: dict(v) for k, v in snapshot.get("fans", {}).items()}
+            
+        for i in self._fan.found_fans:
+            str_i = str(i)
+            if str_i in snapshot["fans"]:
+                snapshot["fans"][str_i]["current"] = self._fan.get_current_speed(i)
+                snapshot["fans"][str_i]["target"] = self._fan.get_target_speed(i)
+                
+        return json.dumps(snapshot)
 
     def GetFanMode(self):
         """Convenience method — returns the current fan mode string."""
