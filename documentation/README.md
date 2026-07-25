@@ -12,3 +12,6 @@ Welcome to the internal documentation for **OmenCtl**. This directory contains c
 
 3. [Developer's Guide (Where to Edit)](DEVELOPERS_GUIDE.md)
    A step-by-step guide explaining which files to modify if you want to change the GUI, update the background daemon, or add support for a new laptop model.
+
+4. [Source Code & Method Reference](CODE_REFERENCE.md)
+   A deep dive into the actual codebase. Explains what specific methods do (like `_monitor_loop` or `_curve_fan_pct`), why they were written, and their expected behaviors.
