@@ -45,6 +45,7 @@ _BACKEND_LABELS = {
     "envycontrol":  "envycontrol",
     "supergfxctl":  "supergfxctl",
     "prime-select": "prime-select",
+    "wmi-native":   "Native WMI Orchestrator",
     "none":         "—",
 }
 
@@ -204,6 +205,12 @@ class MUXPage(Gtk.Box):
         self.backend_label.set_opacity(0.8)
         card.append(self.backend_label)
 
+        self.displays_label = Gtk.Label(label="", css_classes=["stat-lbl"],
+                                       xalign=0.5, wrap=True)
+        self.displays_label.set_opacity(0.8)
+        self.displays_label.set_margin_top(10)
+        card.append(self.displays_label)
+
         scroll_content.append(card)
 
         # Reboot warning (shown only when reboot is actually required)
@@ -219,7 +226,7 @@ class MUXPage(Gtk.Box):
         self.warn_card.append(warn_row)
         scroll_content.append(self.warn_card)
 
-        # Not available state — with envycontrol installer
+        # Not available state
         self.not_available = Gtk.Box(orientation=Gtk.Orientation.VERTICAL,
                                      spacing=15, halign=Gtk.Align.CENTER)
         self.not_available.add_css_class("warning-box")
@@ -228,35 +235,11 @@ class MUXPage(Gtk.Box):
         ic.set_pixel_size(48)
         self.not_available.append(ic)
         self.not_available.append(
-            Gtk.Label(label=T("mux_not_found"), css_classes=["warning-text"]))
+            Gtk.Label(label="WMI MUX arayüzü bulunamadı", css_classes=["warning-text"]))
         self.not_available.append(
-            Gtk.Label(label=T("mux_install_hint"),
+            Gtk.Label(label="hp-rgb-lighting çekirdek modülü yüklenmemiş veya WMI MUX desteklenmiyor.",
                       css_classes=["warning-sub"], wrap=True))
 
-        # ── envycontrol install card ──
-        install_card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
-        install_card.add_css_class("card")
-        install_card.set_margin_top(10)
-        install_card.set_size_request(420, -1)
-
-        install_header = Gtk.Box(spacing=8, halign=Gtk.Align.CENTER)
-        install_header.append(Gtk.Image.new_from_icon_name("system-software-install-symbolic"))
-        install_header.append(Gtk.Label(label="Install envycontrol",
-                                        css_classes=["section-title"]))
-        install_card.append(install_header)
-
-        install_desc = Gtk.Label(
-            label="envycontrol allows you to switch between Hybrid, Integrated and Discrete GPU modes.\n"
-                  "Install it using your distribution's package manager.",
-            wrap=True, xalign=0.5, css_classes=["stat-lbl"])
-        install_card.append(install_desc)
-
-        self._install_btn = Gtk.Button(label="📖 View Installation Instructions")
-        self._install_btn.add_css_class("suggested-action")
-        self._install_btn.connect("clicked", self._on_open_install_instructions)
-        install_card.append(self._install_btn)
-
-        self.not_available.append(install_card)
         scroll_content.append(self.not_available)
 
         scroll.set_child(scroll_content)
@@ -390,19 +373,6 @@ class MUXPage(Gtk.Box):
                     f"{T('mode_set').format(mode=self.current_mode)} "
                     f"({T('error')}: reboot: {e})")
 
-    # ── envycontrol install instructions ──────────────────────────────────────
-    _ENVYCONTROL_URL = "https://github.com/bayasdev/envycontrol#%EF%B8%8F-getting-envycontrol"
-
-    def _on_open_install_instructions(self, _btn):
-        """Open the envycontrol installation instructions in the default browser."""
-        try:
-            subprocess.Popen(
-                ["xdg-open", self._ENVYCONTROL_URL],
-                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-            )
-        except Exception:
-            pass
-
     # ── Data refresh ──────────────────────────────────────────────────────────
     def _refresh(self):
         if not self.service:
@@ -432,9 +402,18 @@ class MUXPage(Gtk.Box):
                 
                 self.status_label.set_label(
                     f"Backend: {_BACKEND_LABELS.get(self.backend, self.backend)}")
+
+                displays = info.get("displays", [])
+                if displays:
+                    disp_texts = [f"{d['display']} → {d['gpu']}" for d in displays]
+                    self.displays_label.set_label("Bağlı Ekran Çıkışları:\n" + "\n".join(disp_texts))
+                else:
+                    self.displays_label.set_label("")
             else:
                 self.not_available.set_visible(True)
                 self.mux_box.set_visible(False)
                 self.status_label.set_label(T("mux_not_found"))
+                if hasattr(self, 'displays_label'):
+                    self.displays_label.set_label("")
         except Exception:
             pass
