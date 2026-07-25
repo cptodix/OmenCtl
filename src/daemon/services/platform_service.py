@@ -279,24 +279,80 @@ class PlatformService:
         logger.info("Generating hardware dump (JSON)...")
         data = {
             "system": {},
+            "capabilities": {},
             "ec": {},
             "acpi": {}
         }
         
+        def _read_dmi(name, default="N/A"):
+            for prefix in ("/sys/class/dmi/id/", "/sys/devices/virtual/dmi/id/"):
+                path = prefix + name
+                try:
+                    if os.path.exists(path):
+                        with open(path) as f:
+                            return f.read().strip()
+                except Exception:
+                    pass
+            return default
+
         with self._cache_lock:
             info = self._info_cache.copy()
             data["system"] = {
-                "product_name": info.get('product_name', 'Unknown'),
-                "board_id": info.get('board_id', 'Unknown'),
-                "cpu_name": info.get('cpu_name', 'Unknown'),
-                "kernel": info.get('kernel', 'Unknown')
+                "Ürün Adı": info.get('product_name', 'Unknown'),
+                "Anakart ID": info.get('board_id', 'Unknown'),
+                "Anakart Üretici": _read_dmi("board_vendor", "Unknown"),
+                "İşlemci": info.get('cpu_name', 'Unknown'),
+                "Kernel Sürümü": info.get('kernel', 'Unknown'),
+                "BIOS Sürümü": _read_dmi("bios_version", "Unknown"),
+                "BIOS Tarihi": _read_dmi("bios_date", "Unknown"),
+                "Mimari": platform.machine(),
             }
+            
+            secure_boot = "Bilinmiyor"
+            try:
+                for sb_path in glob.glob("/sys/firmware/efi/efivars/SecureBoot-*"):
+                    with open(sb_path, "rb") as f:
+                        sb_data = f.read()
+                        secure_boot = "Açık" if sb_data[-1] == 1 else "Kapalı"
+                        break
+            except Exception:
+                pass
+            data["system"]["Secure Boot"] = secure_boot
+            
+            if shutil.which("nvidia-smi"):
+                try:
+                    out = subprocess.check_output(["nvidia-smi", "--query-gpu=name,driver_version", "--format=csv,noheader"], text=True).strip()
+                    data["system"]["NVIDIA GPU"] = out
+                except Exception:
+                    pass
+
+        caps = self.ec.capabilities
+        data["capabilities"] = {
+            "Desteklenen Model": caps.model_name,
+            "Üretim Yılı": caps.model_year,
+            "Mimari Ailesi": caps.family,
+            "WMI Fan Kontrol": "Var" if caps.supports_fan_control_wmi else "Yok",
+            "EC Fan Kontrol": "Var" if caps.supports_fan_control_ec else "Yok",
+            "MUX Switch": "Var" if caps.has_mux_switch else "Yok",
+            "Fan Eğrileri": "Var" if caps.supports_fan_curves else "Yok",
+        }
 
         data["ec"]["supported"] = self.ec.has_ec_access
         if self.ec.has_ec_access:
             data["ec"]["capabilities"] = self.ec.capabilities.to_dict()
 
         data["acpi"] = acpi_mapper.dump_and_analyze_acpi()
+        
+        try:
+            dmesg_out = subprocess.check_output(["dmesg"], text=True, stderr=subprocess.DEVNULL)
+            relevant_logs = []
+            for line in dmesg_out.splitlines():
+                l = line.lower()
+                if "hp-wmi" in l or "hp_wmi" in l or " omen " in l or "wmi" in l:
+                    relevant_logs.append(line.strip())
+            data["dmesg"] = relevant_logs[-50:]
+        except Exception as e:
+            data["dmesg"] = [f"Error fetching dmesg: {e}"]
 
         return json.dumps(data)
 

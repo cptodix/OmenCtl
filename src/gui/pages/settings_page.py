@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Settings Page with GitHub update checker — i18n via T()."""
 import os, platform, threading, json, subprocess, shutil, tempfile, glob
-from gui.utils.updater import OmenUpdater
-from gui.utils.diagnostics import generate_diagnostic_report, generate_github_issue_body
+from utils.updater import OmenUpdater
+from utils.diagnostics import generate_diagnostic_report, generate_github_issue_body
 import gi
 gi.require_version('Gtk', '4.0')
 from gi.repository import Gtk, GLib, Gdk
@@ -813,6 +813,27 @@ class SettingsPage(Gtk.Box):
             row += 1
         self.dump_content.append(sys_grid)
         self.dump_content.append(self._make_sep())
+            
+        # Capabilities Table
+        cap_data = data.get("capabilities", {})
+        if cap_data:
+            self.dump_content.append(self._make_section_header("⚙️", "Donanım Yetenekleri"))
+            cap_grid = Gtk.Grid(row_spacing=8, column_spacing=16)
+            cap_grid.set_halign(Gtk.Align.CENTER)
+            row = 0
+            lbl_p = Gtk.Label(label="Özellik", halign=Gtk.Align.START)
+            lbl_p.add_css_class("section-title")
+            cap_grid.attach(lbl_p, 0, row, 1, 1)
+            lbl_v = Gtk.Label(label="Durum", halign=Gtk.Align.START)
+            lbl_v.add_css_class("section-title")
+            cap_grid.attach(lbl_v, 1, row, 1, 1)
+            row += 1
+            for k, v in cap_data.items():
+                cap_grid.attach(Gtk.Label(label=str(k), halign=Gtk.Align.START), 0, row, 1, 1)
+                cap_grid.attach(Gtk.Label(label=str(v), halign=Gtk.Align.START), 1, row, 1, 1)
+                row += 1
+            self.dump_content.append(cap_grid)
+            self.dump_content.append(self._make_sep())
             
         # ACPI Table
         acpi = data.get("acpi", {})
