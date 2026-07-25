@@ -53,9 +53,30 @@ class NativeWmiMuxController:
             return "unknown"
             
         try:
-            # Native WMI cannot be read. Detect mode via PCI devices (lspci).
-            # If Intel/AMD VGA controller is missing, we are in Discrete mode.
-            # If both are present, we are in Hybrid mode.
+            # First, check DRM display outputs to see if internal display is connected to NVIDIA
+            # This is much more reliable on modern laptops where both GPUs remain on the PCIe bus
+            import glob, os
+            edp_on_nvidia = False
+            for card in glob.glob("/sys/class/drm/card[0-9]*"):
+                basename = os.path.basename(card).upper()
+                if "EDP" in basename:
+                    try:
+                        with open(os.path.join(card, "status")) as f:
+                            if f.read().strip() == "connected":
+                                parent = os.path.realpath(os.path.join(card, "device", "device"))
+                                vendor_file = os.path.join(parent, "vendor")
+                                if os.path.exists(vendor_file):
+                                    with open(vendor_file) as vf:
+                                        if vf.read().strip().lower() == "0x10de":
+                                            edp_on_nvidia = True
+                    except Exception:
+                        pass
+                        
+            if edp_on_nvidia:
+                self._cached_mode = "discrete"
+                return self._cached_mode
+                
+            # Fallback to lspci detection
             lspci_out = subprocess.check_output(["lspci", "-D"], text=True).strip().lower()
             
             has_nvidia = False
@@ -75,7 +96,7 @@ class NativeWmiMuxController:
             else:
                 self._cached_mode = "unknown"
         except Exception as e:
-            logger.debug("MUX get_mode (lspci) error: %s", e)
+            logger.debug("MUX get_mode error: %s", e)
             
         return self._cached_mode
 
