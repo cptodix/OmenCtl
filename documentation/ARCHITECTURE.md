@@ -1,49 +1,98 @@
-# Architecture & Execution Flow
+# OmenCtl Architecture & Execution Map
 
-OmenCtl adopts a modern client-server architecture to ensure security, performance, and stability. Because controlling hardware (like WMI, ACPI, and EC) requires `root` privileges, the GUI runs unprivileged in the user space, while all hardware logic is handled by a background daemon.
-
-## Core Layers
-
-### 1. The GUI & Tray App (User Space)
-Written in Python using GTK4 and Libadwaita for a native, responsive Linux experience. 
-The GUI **never** touches hardware directly. Instead, it relies on D-Bus proxies. When you open the dashboard or change a setting, the GUI makes asynchronous or non-blocking D-Bus calls to fetch data or push commands.
-
-### 2. The D-Bus IPC (Inter-Process Communication)
-D-Bus is the bridge between the GUI and the Daemon. OmenCtl uses the `pydbus` library.
-Services are separated logically:
-- `com.yyl.hpmanager.fan`
-- `com.yyl.hpmanager.power`
-- `com.yyl.hpmanager.rgb`
-- `com.yyl.hpmanager.mux`
-
-### 3. The Daemon (`omenctld`)
-Running as `root`, the daemon listens to D-Bus and manages background tasks like the custom fan curve loop, app-based power profiles, and thermal protection.
+OmenCtl is engineered using a robust client-server architecture to ensure that the unprivileged user interface remains incredibly fast, while the root-level background daemon safely handles the heavy lifting of direct hardware I/O and WMI execution.
 
 ---
 
-## Execution Flow: How a Command is Processed
+## 1. Top-Level System Architecture Map
 
-Here is a step-by-step breakdown of how a command flows from the highest GUI layer to the deepest hardware ACPI/WMI layer.
+The following map illustrates how OmenCtl routes user intentions all the way down into the motherboard's firmware.
 
-### Example: Setting the Fan Mode to "Max"
+```mermaid
+graph TD
+    subgraph User Space (Unprivileged)
+        A[OmenCtl GUI - GTK4]
+        B[OmenTray Icon]
+        A <--> |Non-blocking D-Bus IPC| C(D-Bus System Bus)
+        B <--> |Non-blocking D-Bus IPC| C
+    end
 
-1. **User Interaction (GUI):**
-   The user clicks the "Max" toggle button in the Fan control page (`src/gui/pages/fan_page.py`).
+    subgraph Root Space (Daemon)
+        C <--> |Signals & Methods| D[OmenCtld Daemon]
+        D --> E{Service Routers}
+        E --> F[Fan Service]
+        E --> G[Power Service]
+        E --> H[RGB Service]
+        E --> I[MUX Service]
+    end
 
-2. **D-Bus Call (IPC):**
-   The GUI fires a D-Bus method: `self.services["fan"].SetFanMode("max")`.
+    subgraph Hardware Abstraction (Kernel & Firmware)
+        F --> |Sysfs Writes| J[hp-wmi Kernel Module]
+        F -.-> |Direct Memory Writes| K[ec_sys DebugFS]
+        G --> L[RyzenAdj / msr module]
+        H --> M[hp-rgb-lighting Kernel Module]
+        I --> M
+        
+        J --> N((ACPI WMI \n _SB.WMID))
+        K -.-> O((Embedded Controller \n EC0))
+        N --> O
+    end
+```
 
-3. **Daemon Reception (`fan_service.py`):**
-   The daemon process receives the request. It checks if Thermal Protection is active. If safe, it forwards the command to the hardware abstraction layer: `self._fan.set_mode("max")`.
+> [!NOTE]
+> The GUI **never** waits for hardware. Hardware commands (like setting a fan curve or changing RGB) can take anywhere from 10ms to 500ms to execute at the firmware level. By decoupling the GUI from the Hardware via D-Bus, the UI maintains a constant 60+ FPS without stuttering.
 
-4. **Hardware Driver / Sysfs Write:**
-   Depending on the laptop's board ID, the controller translates "max" into a low-level command. Usually, it writes `0` (or `1` depending on PWM support) to the kernel `sysfs` node provided by the `hp-wmi` module: `/sys/devices/platform/hp-wmi/pwm1_enable`.
+---
 
-5. **Kernel WMI Driver (`hp-wmi.c`):**
-   The Linux kernel intercepts this write. The `hp-wmi` driver converts the fan speed request into an ACPI WMI command block containing the specific CommandType and data buffers required by HP.
+## 2. Background Polling & Telemetry Loops
 
-6. **ACPI BIOS Method Execution:**
-   The kernel evaluates the ACPI object `_SB.WMID.WQBZ` (or similar WMI GUID method). The motherboard's BIOS firmware handles this ACPI call.
+A critical part of the architecture is how telemetry (Temps, Fan RPMs, Power draw) is gathered without destroying battery life or causing DPC (Deferred Procedure Call) latency spikes.
 
-7. **Embedded Controller (EC):**
-   The ACPI method finally translates the WMI payload into direct I/O port writes to the Embedded Controller (EC). The EC updates its fan control register (e.g., writing the corresponding speed byte to offset `0x34`), which increases the physical fan motor voltage to 100%.
+### The Fan & Thermal Monitor Loop (`_monitor_loop`)
+Inside `src/daemon/services/fan_service.py`, a dedicated background thread runs continuously.
+
+```mermaid
+sequenceDiagram
+    participant Timer
+    participant FanService
+    participant Hardware
+    participant DBusCache
+    participant GUI
+    
+    loop Every 2 Seconds
+        Timer->>FanService: Wake Up Tick
+        FanService->>Hardware: Read CPU/GPU Temps (EC 0x57/0xB7)
+        Hardware-->>FanService: Return Max Temp
+        
+        alt Temp > 95°C (Thermal Protection Active)
+            FanService->>Hardware: OVERRIDE Fan Mode to MAX
+        else Mode == Custom
+            FanService->>FanService: Evaluate Spline Interpolation Curve
+            FanService->>Hardware: Write Target RPM to EC/WMI
+        end
+        
+        FanService->>DBusCache: Update JSON Snapshot 
+    end
+    
+    GUI->>DBusCache: GetFanInfo() (Async IPC)
+    DBusCache-->>GUI: Returns cached JSON instantly
+```
+
+#### Why is this design important?
+1. **Interrupt Storm Prevention:** Querying WMI or the Embedded Controller too frequently (e.g., > 1 time per second) triggers ACPI lock contention on HP motherboards. This causes the laptop fans to stutter or spin up briefly due to firmware panic.
+2. **On-Demand Polling:** While the background loop handles critical thermal protection every 2 seconds, heavy metrics (like individual Fan RPMs) are fetched **on-demand** only when the GUI explicitly asks for them, reducing background idle CPU usage to 0%.
+
+---
+
+## 3. Execution Flow: "Set Performance Mode"
+
+Let's trace exactly what happens when a user clicks the "Performance" button.
+
+1. **GUI Layer:** User clicks the `Performance` toggle button in `power_page.py`.
+2. **D-Bus Call:** The GUI executes `power_svc.SetPowerProfile("performance")` over the `pydbus` proxy.
+3. **Daemon Reception:** `power_service.py` receives the command. It writes the configuration to disk (`~/.config/omenctld/power.json`) so the state persists across reboots.
+4. **Hardware Dispatch:** The daemon tells the `fan_service` to set the thermal profile to `performance`.
+5. **Sysfs Write:** The daemon writes the integer `1` to `/sys/devices/platform/hp-wmi/thermal_profile`.
+6. **Kernel Execution (`hp-wmi.c`):** The Linux kernel `hp-wmi` driver catches this write. It packages the value `1` into a 128-byte data buffer.
+7. **ACPI WMI Call:** The kernel executes the ACPI method `_SB.WMID.WQBZ` with `CommandType = 0x11` (ThermalControl).
+8. **Firmware Magic:** The BIOS receives the ACPI payload. It raises the cTGP (Total Graphics Power) limit of the NVIDIA GPU from 80W to 115W, increases the CPU PL1/PL2 power limits, and instructs the Embedded Controller to apply an aggressive internal fan curve.
