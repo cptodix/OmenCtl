@@ -2,9 +2,25 @@
 
 HP Omen laptops primarily expose hardware controls through ACPI WMI interfaces. However, some legacy or non-standard models require direct interaction with the Embedded Controller (EC) memory space. This document details both the direct EC register offsets and the ACPI WMI commands used by OmenCtl.
 
-## 1. Embedded Controller (EC) Registers
+## The Evolution of HP OMEN Hardware: V1 vs. V2
 
-On supported or legacy models, OmenCtl interacts with the Linux EC module (`ec_sys`) mounted at `/sys/kernel/debug/ec/ec0/io`. Writing bytes to specific offsets controls hardware behavior by bypassing ACPI.
+When developing for OmenCtl, it is crucial to understand the difference between **HP V1** and **HP V2** hardware architectures. HP has drastically changed how thermal and hardware control is implemented over the years.
+
+### HP V1 (Legacy EC & WMI CommandType 0x11)
+- **Era:** 2020 - 2022 (e.g., OMEN 15-ek0xxx, 15-en0xxx).
+- **Architecture:** The BIOS exposes direct, unencrypted Embedded Controller (EC) memory registers. You can write directly to EC offsets like `0x2E` or `0x95`.
+- **WMI Method:** If WMI is used, it utilizes `CommandType 0x11` (ThermalControl) to set Performance/Balanced/Cool modes.
+
+### HP V2 (Modern WMI CommandType 0x08 / WQBZ)
+- **Era:** 2023 - Present (e.g., OMEN 16-wf, OMEN Transcend, Victus 16-r).
+- **Architecture:** Direct EC access is **LOCKED OUT**. Writing to legacy EC offsets will cause the system to freeze, crash, or panic. The BIOS hides thermal control behind strict ACPI WMI buffers.
+- **WMI Method:** Uses `CommandType 0x08` (or custom GUIDs like `WQBZ`). Fan curves and performance profiles must be passed as packed data buffers to the BIOS. OmenCtl handles V2 devices purely through the `hp-wmi` Linux kernel driver's `sysfs` nodes, avoiding direct EC writes entirely.
+
+---
+
+## 1. Embedded Controller (EC) Registers (V1 Hardware Only)
+
+On supported legacy (V1) models, OmenCtl interacts with the Linux EC module (`ec_sys`) mounted at `/sys/kernel/debug/ec/ec0/io`. Writing bytes to specific offsets controls hardware behavior by bypassing ACPI.
 
 *Warning: Directly writing to EC registers on unsupported models can cause hardware panics and sudden system shutdowns.*
 
