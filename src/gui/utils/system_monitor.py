@@ -7,6 +7,18 @@ import json
 import glob
 from gi.repository import GLib
 from i18n import T
+import concurrent.futures
+
+_DBUS_TIMEOUT = 5
+_dbus_pool = concurrent.futures.ThreadPoolExecutor(max_workers=2, thread_name_prefix="sysmon-dbus")
+
+def _dbus_call(fn, *args, timeout=_DBUS_TIMEOUT):
+    fut = _dbus_pool.submit(fn, *args)
+    try:
+        return fut.result(timeout=timeout)
+    except Exception as e:
+        print(f"⚠ SysMon D-Bus call failed/timeout: {e}")
+        return None
 
 class SystemMonitor(threading.Thread):
     def __init__(self, services_provider):

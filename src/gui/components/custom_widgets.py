@@ -3,6 +3,7 @@ gi.require_version('Gtk', '4.0')
 from gi.repository import Gtk, Gdk, GLib, Pango
 import math
 import cairo
+import concurrent.futures
 
 class TemperatureRing(Gtk.Box):
     """Circular temperature indicator with emphasized value and muted unit."""
