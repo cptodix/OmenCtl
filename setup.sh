@@ -663,10 +663,14 @@ do_install() {
     # GUI files
     mkdir -p "$DATA_DIR/gui/pages"
     mkdir -p "$DATA_DIR/gui/widgets"
+    mkdir -p "$DATA_DIR/gui/components"
+    mkdir -p "$DATA_DIR/gui/utils"
     cp src/gui/main_window.py "$DATA_DIR/gui/"
     cp src/gui/i18n.py        "$DATA_DIR/gui/"
     cp src/gui/pages/*.py     "$DATA_DIR/gui/pages/"
     cp src/gui/widgets/*.py   "$DATA_DIR/gui/widgets/"
+    cp src/gui/components/*.py "$DATA_DIR/gui/components/"
+    cp src/gui/utils/*.py      "$DATA_DIR/gui/utils/"
 
     # CLI and Tray files
     cp src/omen-cli.py "$INSTALL_DIR/"
