@@ -108,22 +108,23 @@ class MUXPage(Gtk.Box):
 
         # GPU info card
         gpu_info = _get_nvidia_info()
+        
+        self.gpu_card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+        self.gpu_card.add_css_class("card")
+
+        gpu_header = Gtk.Box(spacing=10)
+        gpu_header.append(Gtk.Image.new_from_icon_name("display-symbolic"))
+        gpu_header.append(Gtk.Label(label=T("gpu_info"),
+                                    css_classes=["section-title"]))
+        self.gpu_card.append(gpu_header)
+
         if gpu_info["name"]:
-            gpu_card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
-            gpu_card.add_css_class("card")
-
-            gpu_header = Gtk.Box(spacing=10)
-            gpu_header.append(Gtk.Image.new_from_icon_name("display-symbolic"))
-            gpu_header.append(Gtk.Label(label=T("gpu_info"),
-                                        css_classes=["section-title"]))
-            gpu_card.append(gpu_header)
-
             name_row = Gtk.Box(spacing=20)
             name_row.append(Gtk.Label(label=T("gpu_card"), hexpand=True,
                                       xalign=0, css_classes=["stat-lbl"]))
             name_row.append(Gtk.Label(label=gpu_info["name"],
                                       xalign=1, css_classes=["stat-big"]))
-            gpu_card.append(name_row)
+            self.gpu_card.append(name_row)
 
             if gpu_info["driver"]:
                 drv_row = Gtk.Box(spacing=20)
@@ -131,9 +132,30 @@ class MUXPage(Gtk.Box):
                                          xalign=0, css_classes=["stat-lbl"]))
                 drv_row.append(Gtk.Label(label=gpu_info["driver"],
                                          xalign=1, css_classes=["stat-big"]))
-                gpu_card.append(drv_row)
+                self.gpu_card.append(drv_row)
 
-            scroll_content.append(gpu_card)
+        # Mode row
+        mode_row = Gtk.Box(spacing=20)
+        mode_row.append(Gtk.Label(label=T("mode"), hexpand=True, xalign=0, css_classes=["stat-lbl"]))
+        self.mode_val = Gtk.Label(label="-", xalign=1, css_classes=["stat-big"])
+        mode_row.append(self.mode_val)
+        self.gpu_card.append(mode_row)
+        
+        # Backend row
+        backend_row = Gtk.Box(spacing=20)
+        backend_row.append(Gtk.Label(label="Backend", hexpand=True, xalign=0, css_classes=["stat-lbl"]))
+        self.backend_val = Gtk.Label(label="-", xalign=1, css_classes=["stat-big"])
+        backend_row.append(self.backend_val)
+        self.gpu_card.append(backend_row)
+
+        # Displays row
+        disp_row = Gtk.Box(spacing=20)
+        disp_row.append(Gtk.Label(label="Bağlı Ekran Çıkışları", hexpand=True, xalign=0, css_classes=["stat-lbl"]))
+        self.displays_val = Gtk.Label(label="-", xalign=1, justify=Gtk.Justification.RIGHT, css_classes=["stat-big"])
+        disp_row.append(self.displays_val)
+        self.gpu_card.append(disp_row)
+
+        scroll_content.append(self.gpu_card)
 
         # Mode selection card
         card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=25)
@@ -196,20 +218,9 @@ class MUXPage(Gtk.Box):
         card.append(self.mux_box)
 
         self.status_label = Gtk.Label(
-            label=T("gpu_checking"), css_classes=["stat-lbl"],
+            label="", css_classes=["stat-lbl"],
             wrap=True, xalign=0.5)
         card.append(self.status_label)
-
-        self.backend_label = Gtk.Label(label="", css_classes=["stat-lbl"],
-                                       xalign=0.5)
-        self.backend_label.set_opacity(0.8)
-        card.append(self.backend_label)
-
-        self.displays_label = Gtk.Label(label="", css_classes=["stat-lbl"],
-                                       xalign=0.5, wrap=True)
-        self.displays_label.set_opacity(0.8)
-        self.displays_label.set_margin_top(10)
-        card.append(self.displays_label)
 
         scroll_content.append(card)
 
@@ -386,8 +397,8 @@ class MUXPage(Gtk.Box):
             if available:
                 self.not_available.set_visible(False)
                 self.mux_box.set_visible(True)
-                self.backend_label.set_label(
-                    f"{T('mode')}: {self.current_mode}")
+                self.mode_val.set_label(self.current_mode.capitalize())
+                self.backend_val.set_label(_BACKEND_LABELS.get(self.backend, self.backend))
 
                 mode_map = {
                     "hybrid":     "hybrid",    "on-demand":  "hybrid",
@@ -396,24 +407,21 @@ class MUXPage(Gtk.Box):
                 }
                 mapped = mode_map.get(self.current_mode, self.current_mode)
                 if mapped in self.mode_buttons:
-                    self._mode_loaded = False # prevent trigger during select
+                    self._mode_loaded = False
                     self.mode_buttons[mapped].set_active(True)
                     self._mode_loaded = True
-                
-                self.status_label.set_label(
-                    f"Backend: {_BACKEND_LABELS.get(self.backend, self.backend)}")
 
                 displays = info.get("displays", [])
                 if displays:
                     disp_texts = [f"{d['display']} → {d['gpu']}" for d in displays]
-                    self.displays_label.set_label("Bağlı Ekran Çıkışları:\n" + "\n".join(disp_texts))
+                    self.displays_val.set_label("\n".join(disp_texts))
                 else:
-                    self.displays_label.set_label("")
+                    self.displays_val.set_label("Yok")
             else:
                 self.not_available.set_visible(True)
                 self.mux_box.set_visible(False)
                 self.status_label.set_label(T("mux_not_found"))
-                if hasattr(self, 'displays_label'):
-                    self.displays_label.set_label("")
+                if hasattr(self, 'displays_val'):
+                    self.displays_val.set_label("")
         except Exception:
             pass
