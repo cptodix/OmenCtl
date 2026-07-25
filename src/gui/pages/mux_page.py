@@ -7,7 +7,7 @@ import shutil
 import sys
 import gi
 gi.require_version('Gtk', '4.0')
-from gi.repository import Gtk, GLib
+from gi.repository import Gtk, GLib, Gio
 
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -113,7 +113,8 @@ class MUXPage(Gtk.Box):
         self.gpu_card.add_css_class("card")
 
         gpu_header = Gtk.Box(spacing=10)
-        gpu_header.append(Gtk.Image.new_from_icon_name("display-symbolic"))
+        disp_icon = Gio.ThemedIcon.new_from_names(["display-symbolic", "video-display-symbolic", "computer-symbolic"])
+        gpu_header.append(Gtk.Image.new_from_gicon(disp_icon))
         gpu_header.append(Gtk.Label(label=T("gpu_info"),
                                     css_classes=["section-title"]))
         self.gpu_card.append(gpu_header)
@@ -162,7 +163,7 @@ class MUXPage(Gtk.Box):
         card.add_css_class("card")
 
         header = Gtk.Box(spacing=10)
-        header.append(Gtk.Image.new_from_icon_name("display-symbolic"))
+        header.append(Gtk.Image.new_from_gicon(disp_icon))
         header.append(Gtk.Label(label=T("gpu_mode"), css_classes=["section-title"]))
         card.append(header)
 
@@ -194,7 +195,7 @@ class MUXPage(Gtk.Box):
         # ── Discrete ──────────────────────────────────────────────────────────
         self.dgpu_outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL,
                                   spacing=10, halign=Gtk.Align.CENTER)
-        dgpu_icon = Gtk.Image.new_from_icon_name("display-symbolic")
+        dgpu_icon = Gtk.Image.new_from_gicon(disp_icon)
         dgpu_icon.set_pixel_size(80)
         dgpu_icon.set_halign(Gtk.Align.CENTER)
         self._dgpu_icon = dgpu_icon

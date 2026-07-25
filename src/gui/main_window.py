@@ -2117,12 +2117,12 @@ class HPManagerWindow(Gtk.ApplicationWindow):
 
         # ── Navigation items (excluding Settings) ──
         nav_items = [
-            ("fan",       self.page_titles["fan"],       "system-run-symbolic"),
-            ("lighting",  self.page_titles["lighting"],  "preferences-color-symbolic"),
-            ("power",     self.page_titles["power"],     "battery-symbolic"),
-            ("keyboard",  self.page_titles["keyboard"],  "preferences-desktop-keyboard-symbolic"),
-            ("app_profiles", self.page_titles["app_profiles"], "applications-system-symbolic"),
-            ("mux",       "MUX",                        "display-symbolic"),
+            ("fan",       self.page_titles["fan"],       ["system-run-symbolic", "media-playback-start-symbolic", "applications-system-symbolic"]),
+            ("lighting",  self.page_titles["lighting"],  ["preferences-color-symbolic", "applications-graphics-symbolic", "color-management-symbolic"]),
+            ("power",     self.page_titles["power"],     ["battery-symbolic", "ac-adapter-symbolic", "power-profile-balanced-symbolic"]),
+            ("keyboard",  self.page_titles["keyboard"],  ["preferences-desktop-keyboard-symbolic", "input-keyboard-symbolic"]),
+            ("app_profiles", self.page_titles["app_profiles"], ["applications-system-symbolic", "preferences-system-symbolic"]),
+            ("mux",       "MUX",                        ["display-symbolic", "video-display-symbolic", "computer-symbolic"]),
         ]
 
         self.nav_indicators = {}
@@ -2143,7 +2143,7 @@ class HPManagerWindow(Gtk.ApplicationWindow):
         bottom_nav_box.append(self.theme_toggle_btn)
 
         # Settings button
-        self.settings_btn = self._make_nav_button("settings", self.page_titles["settings"], "emblem-system-symbolic")
+        self.settings_btn = self._make_nav_button("settings", self.page_titles["settings"], ["emblem-system-symbolic", "preferences-system-symbolic", "applications-system-symbolic"])
         bottom_nav_box.append(self.settings_btn)
 
         sidebar.append(bottom_nav_box)
@@ -2382,10 +2382,10 @@ class HPManagerWindow(Gtk.ApplicationWindow):
             "ram": "RAM",
         }
         icons = {
-            "cpu": "processor-symbolic",
-            "disk": "drive-harddisk-symbolic",
-            "gpu": "video-display-symbolic",
-            "ram": "media-memory-symbolic",
+            "cpu": ["processor-symbolic", "cpu-symbolic"],
+            "disk": ["drive-harddisk-symbolic"],
+            "gpu": ["display-symbolic", "video-display-symbolic", "computer-symbolic"],
+            "ram": ["media-memory-symbolic", "media-flash-symbolic"],
         }
 
         spec_row = Gtk.Box(spacing=8, homogeneous=True)
@@ -2395,7 +2395,8 @@ class HPManagerWindow(Gtk.ApplicationWindow):
             item = Gtk.Box(spacing=6)
             item.add_css_class("home-spec-item")
 
-            ico = Gtk.Image.new_from_icon_name(icons[key])
+            gicon = Gio.ThemedIcon.new_from_names(icons[key])
+            ico = Gtk.Image.new_from_gicon(gicon)
             ico.set_pixel_size(14)
             item.append(ico)
 
@@ -2790,7 +2791,7 @@ class HPManagerWindow(Gtk.ApplicationWindow):
         icon.set_pixel_size(16)
         self.fullscreen_btn.set_child(icon)
 
-    def _make_nav_button(self, page_id, label, icon_name):
+    def _make_nav_button(self, page_id, label, icon_names):
         btn = Gtk.Button()
         btn.add_css_class("nav-item")
 
@@ -2807,7 +2808,11 @@ class HPManagerWindow(Gtk.ApplicationWindow):
         box.append(indicator)
         self.nav_indicators[page_id] = indicator
 
-        icon = Gtk.Image.new_from_icon_name(icon_name)
+        if isinstance(icon_names, (list, tuple)):
+            gicon = Gio.ThemedIcon.new_from_names(list(icon_names))
+            icon = Gtk.Image.new_from_gicon(gicon)
+        else:
+            icon = Gtk.Image.new_from_icon_name(icon_names)
         icon.set_pixel_size(24)
         icon.add_css_class("nav-icon")
         icon.set_valign(Gtk.Align.CENTER)
