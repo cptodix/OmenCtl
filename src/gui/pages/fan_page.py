@@ -13,6 +13,8 @@ gi.require_version('Gtk', '4.0')
 from gi.repository import Gtk, GLib, Gdk, GObject
 from widgets.smooth_scroll import SmoothScrolledWindow
 from widgets.fan_curve import FanCurveWidget
+from components.custom_widgets import OmenHighTechGauge, OmenSpecsBridge
+from utils.system_monitor import SystemMonitor
 import cairo
 
 DEFAULT_MODE_SYNC_DELAY_MS = 1500
