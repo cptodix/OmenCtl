@@ -323,7 +323,24 @@ class FanController:
 
         path = os.path.join(self.hwmon_path, f"fan{fan_num}_target") if self.hwmon_path else None
 
-        # If we already know fan_target is unreliable, short-circuit to pwm1.
+        # 1. Öncelik: Eğer EC kullanılabiliyorsa ve güvenliyse (8BBE için güvenli yaptık),
+        # donanıma kesin komut göndermek için doğrudan EC kullan! Hwmon Victus'larda bozuk.
+        if self.ec.capabilities.supports_fan_control_ec and not self.ec.is_unsafe_ec_model:
+            # EC may not have been available at boot — try a lazy load now.
+            if not self.ec.has_ec_access:
+                self.ec.try_lazy_ec_load()
+            if self.ec.has_ec_access:
+                max_rpm = self.get_max_speed(fan_num) or 6000
+                pct = int(round(rpm * 100.0 / max_rpm))
+                logger.info("Using direct EC write for fan %d target (%d%%)", fan_num, pct)
+                ok = self.ec.set_fan_speed_pct(fan_num, pct)
+                if ok:
+                    self._last_targets[fan_num] = rpm
+                    return True
+                else:
+                    logger.debug("EC write failed for fan %d target", fan_num)
+                    
+        # 2. Öncelik: Hwmon fan_target (EC çalışmazsa veya yoksa)
         if self._fan_target_reliable is False and self._has_pwm_fallback():
             ok = self._set_pwm_fallback_target(fan_num, rpm)
         elif path and sysfs_exists(path):
@@ -344,23 +361,12 @@ class FanController:
                 else:
                     self._fan_target_reliable = True
                     logger.info("fan_target readback OK (wrote=%d, read=%d) — using fan_target.", rpm, written)
+        # 3. Öncelik: Hwmon pwm1
         elif self._has_pwm_fallback():
             ok = self._set_pwm_fallback_target(fan_num, rpm)
-        elif self.ec.capabilities.supports_fan_control_ec and not self.ec.is_unsafe_ec_model:
-            # EC may not have been available at boot — try a lazy load now.
-            if not self.ec.has_ec_access:
-                self.ec.try_lazy_ec_load()
-            if self.ec.has_ec_access:
-                max_rpm = self.get_max_speed(fan_num) or 6000
-                pct = int(round(rpm * 100.0 / max_rpm))
-                logger.info("Using direct EC write for fan %d target (%d%%)", fan_num, pct)
-                ok = self.ec.set_fan_speed_pct(fan_num, pct)
-            else:
-                logger.debug("EC lazy load failed for fan%d target", fan_num)
-                return False
         else:
             logger.debug(
-                "No fan%d_target, pwm1 fallback, or EC access available",
+                "No EC access, no fan%d_target, and no pwm1 fallback available",
                 fan_num,
             )
             return False
