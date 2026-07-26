@@ -99,7 +99,7 @@ class RGBController:
         if not self.available or not (0 <= zone <= 7):
             return
             
-        # Önceden yazılan renk aynıysa gereksiz sysfs yazma işlemini (I/O) atla
+        # Skip redundant sysfs I/O if the zone color hasn't changed.
         if self._color_cache.get(zone) == hex_color:
             return
         self._color_cache[zone] = hex_color
