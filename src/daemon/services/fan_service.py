@@ -49,9 +49,9 @@ class FanController:
         self.mode = "auto"
         self._fallback_paths = {}
         self._last_targets = {}
-        # Bazı HP firmware'leri fan_target sysfs yazımını sessizce yoksayıyor.
-        # İlk yazımdan sonra readback yaparak bunu tespit edip pwm1'e geçiyoruz.
-        self._fan_target_reliable = None  # None=bilinmiyor, True/False=test edildi
+        # Some HP firmware silently ignores fan_target sysfs writes at the hardware level.
+        # We detect this after the first write via readback and permanently fall back to pwm1.
+        self._fan_target_reliable = None  # None=unknown, True/False=probed
         if self.hwmon_path:
             self._detect_fans()
             self._read_max_speeds()
@@ -125,16 +125,16 @@ class FanController:
         for i in self.found_fans:
             max_path = os.path.join(self.hwmon_path, f"fan{i}_max")
             raw = sysfs_read(max_path, 0)
-            # HP Victus/Omen hwmon'u fan_max olarak gerçek fiziksel maksimumu
-            # değil, BIOS referans hızını döndürür (1800/2100 RPM gibi).
-            # Bu değer 3000 RPM'den düşükse güvenilmez; mevcut fan hızını
-            # okuyarak gerçek üst sınırı dinamik olarak tahmin ediyoruz.
+            # HP Victus/Omen hwmon reports fan_max as a BIOS reference speed
+            # (e.g. 1800/2100 RPM), not the actual physical maximum (~5800/6000).
+            # Values below 3000 RPM are treated as unreliable; we estimate the
+            # real ceiling dynamically from the current fan speed instead.
             if raw >= 3000:
                 self.max_speeds[i] = raw
             else:
                 input_path = os.path.join(self.hwmon_path, f"fan{i}_input")
                 current = sysfs_read(input_path, 0)
-                # Gerçek max için %25 emniyet payı bıraktık; minimum 6000 RPM
+                # Add a 25 % safety headroom; floor at 6000 RPM.
                 self.max_speeds[i] = max(int(current * 1.25), 6000)
                 logger.info(
                     "Fan %d: hwmon fan_max=%d unreliable (BIOS ref); "
@@ -323,15 +323,15 @@ class FanController:
 
         path = os.path.join(self.hwmon_path, f"fan{fan_num}_target") if self.hwmon_path else None
 
-        # fan_target'in gerçekten çalışıp çalışmadığını biliyorsak PWM'e kısayol al
+        # If we already know fan_target is unreliable, short-circuit to pwm1.
         if self._fan_target_reliable is False and self._has_pwm_fallback():
             ok = self._set_pwm_fallback_target(fan_num, rpm)
         elif path and sysfs_exists(path):
             ok = sysfs_write(path, rpm)
-            # İlk yazımda ya da bilinmiyorsa readback ile doğrula
+            # On first write (or while still unprobed), verify via readback.
             if ok and self._fan_target_reliable is None:
                 written = sysfs_read(path, -1)
-                # %20 tolerans: firmware bazen yaklaşık değer tutturabilir
+                # 20 % tolerance — some firmware rounds to the nearest step.
                 if rpm > 0 and abs(written - rpm) > rpm * 0.20:
                     logger.warning(
                         "fan%d_target readback mismatch (wrote=%d, read=%d) — "
@@ -603,23 +603,23 @@ class FanService:
                         self._fan.set_mode("max")
 
             mode = self._fan.get_mode()
-            
-            # Config'deki (kullanıcının istediği) modu ana kaynak olarak kullan.
-            # Donanımdan okunan mod, power-profiles-daemon veya ACPI tarafından
-            # sıfırlanabilir — bu yüzden eğri uygulaması için config'e güveniyoruz.
+
+            # Use the config-stored (user-intended) mode as the authoritative source.
+            # The hardware-reported mode can be reset by power-profiles-daemon or ACPI
+            # events, so we rely on config for deciding whether to apply the curve.
             config_mode = self._config.get("fan_mode", "auto")
 
-            # Hardware only knows "custom", but we want to expose "performance" 
-            # to the UI if it was requested via DBus
+            # Hardware only knows "custom", but we want to expose "performance"
+            # to the UI if it was requested via DBus.
             if mode == "custom":
                 stored_mode = self._config.get("fan_mode")
                 if stored_mode == "performance":
                     mode = "performance"
 
-            # Mod koruma: Eğer kullanıcı custom/performance istemiş ama donanım
-            # başka bir tarafından auto/balanced'a çekilmişse, geri al.
+            # Mode enforcement: if the user requested custom/performance but the
+            # hardware was reset to auto/balanced by an external agent, restore it.
             if config_mode in ("custom", "performance") and not self._thermal_protection_active:
-                hw_mode = mode  # get_mode()'dan gelen donanım değeri
+                hw_mode = mode  # hardware value from get_mode()
                 if hw_mode not in ("custom", "performance"):
                     logger.debug("Mode enforcement: hardware reported '%s' but config wants '%s'. Re-applying.", hw_mode, config_mode)
                     self._fan.set_mode("custom")
