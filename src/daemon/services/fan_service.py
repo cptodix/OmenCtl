@@ -49,6 +49,9 @@ class FanController:
         self.mode = "auto"
         self._fallback_paths = {}
         self._last_targets = {}
+        # Bazı HP firmware'leri fan_target sysfs yazımını sessizce yoksayıyor.
+        # İlk yazımdan sonra readback yaparak bunu tespit edip pwm1'e geçiyoruz.
+        self._fan_target_reliable = None  # None=bilinmiyor, True/False=test edildi
         if self.hwmon_path:
             self._detect_fans()
             self._read_max_speeds()
@@ -319,8 +322,28 @@ class FanController:
             return True
 
         path = os.path.join(self.hwmon_path, f"fan{fan_num}_target") if self.hwmon_path else None
-        if path and sysfs_exists(path):
+
+        # fan_target'in gerçekten çalışıp çalışmadığını biliyorsak PWM'e kısayol al
+        if self._fan_target_reliable is False and self._has_pwm_fallback():
+            ok = self._set_pwm_fallback_target(fan_num, rpm)
+        elif path and sysfs_exists(path):
             ok = sysfs_write(path, rpm)
+            # İlk yazımda ya da bilinmiyorsa readback ile doğrula
+            if ok and self._fan_target_reliable is None:
+                written = sysfs_read(path, -1)
+                # %20 tolerans: firmware bazen yaklaşık değer tutturabilir
+                if rpm > 0 and abs(written - rpm) > rpm * 0.20:
+                    logger.warning(
+                        "fan%d_target readback mismatch (wrote=%d, read=%d) — "
+                        "firmware ignores fan_target; switching to pwm1 control.",
+                        fan_num, rpm, written,
+                    )
+                    self._fan_target_reliable = False
+                    if self._has_pwm_fallback():
+                        ok = self._set_pwm_fallback_target(fan_num, rpm)
+                else:
+                    self._fan_target_reliable = True
+                    logger.info("fan_target readback OK (wrote=%d, read=%d) — using fan_target.", rpm, written)
         elif self._has_pwm_fallback():
             ok = self._set_pwm_fallback_target(fan_num, rpm)
         elif self.ec.capabilities.supports_fan_control_ec and not self.ec.is_unsafe_ec_model:
