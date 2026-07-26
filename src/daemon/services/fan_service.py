@@ -121,7 +121,23 @@ class FanController:
             return
         for i in self.found_fans:
             max_path = os.path.join(self.hwmon_path, f"fan{i}_max")
-            self.max_speeds[i] = sysfs_read(max_path, 6000)
+            raw = sysfs_read(max_path, 0)
+            # HP Victus/Omen hwmon'u fan_max olarak gerçek fiziksel maksimumu
+            # değil, BIOS referans hızını döndürür (1800/2100 RPM gibi).
+            # Bu değer 3000 RPM'den düşükse güvenilmez; mevcut fan hızını
+            # okuyarak gerçek üst sınırı dinamik olarak tahmin ediyoruz.
+            if raw >= 3000:
+                self.max_speeds[i] = raw
+            else:
+                input_path = os.path.join(self.hwmon_path, f"fan{i}_input")
+                current = sysfs_read(input_path, 0)
+                # Gerçek max için %25 emniyet payı bıraktık; minimum 6000 RPM
+                self.max_speeds[i] = max(int(current * 1.25), 6000)
+                logger.info(
+                    "Fan %d: hwmon fan_max=%d unreliable (BIOS ref); "
+                    "using dynamic max=%d RPM (from current=%d RPM)",
+                    i, raw, self.max_speeds[i], current,
+                )
 
     def _read_current_mode(self):
         if not self.hwmon_path:
