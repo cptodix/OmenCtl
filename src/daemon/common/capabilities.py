@@ -105,7 +105,7 @@ KNOWN_MODELS = {
     "8A97": ModelCapabilities("8A97", "Victus by HP 16-d1xxx", model_year=2022, family="Victus", has_mux_switch=False, supports_fan_control_ec=True),
     "8B19": ModelCapabilities("8B19", "Victus by HP 16-r0xxx", model_year=2023, family="Victus", has_mux_switch=True, supports_fan_control_ec=False),
     "8B1A": ModelCapabilities("8B1A", "Victus by HP 16-s0xxx", model_year=2023, family="Victus", has_mux_switch=True, supports_fan_control_ec=False),
-    "8BBE": ModelCapabilities("8BBE", "Victus by HP 16-r0xxx", model_year=2023, family="Victus", has_mux_switch=True, supports_fan_control_ec=False),
+    "8BBE": ModelCapabilities("8BBE", "Victus by HP 16-r0xxx", model_year=2023, family="Victus", has_mux_switch=True, supports_fan_control_ec=True),
     "88F8": ModelCapabilities("88F8", "Victus by HP Laptop 16-d0xxx", model_year=2023, family="Victus", has_mux_switch=False, supports_fan_control_ec=True, notes="s2idle only — S3 sleep not available; display may not resume after suspend (NVIDIA/hybrid graphics issue)"),
     "8C9C": ModelCapabilities("8C9C", "Victus by HP Gaming Laptop 16-s1xxx", model_year=2024, family="Victus", has_mux_switch=True, supports_fan_control_ec=False),
 }

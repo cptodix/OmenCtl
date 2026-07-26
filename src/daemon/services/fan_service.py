@@ -565,16 +565,30 @@ class FanService:
 
             mode = self._fan.get_mode()
             
+            # Config'deki (kullanıcının istediği) modu ana kaynak olarak kullan.
+            # Donanımdan okunan mod, power-profiles-daemon veya ACPI tarafından
+            # sıfırlanabilir — bu yüzden eğri uygulaması için config'e güveniyoruz.
+            config_mode = self._config.get("fan_mode", "auto")
+
             # Hardware only knows "custom", but we want to expose "performance" 
             # to the UI if it was requested via DBus
             if mode == "custom":
                 stored_mode = self._config.get("fan_mode")
                 if stored_mode == "performance":
                     mode = "performance"
-                    
+
+            # Mod koruma: Eğer kullanıcı custom/performance istemiş ama donanım
+            # başka bir tarafından auto/balanced'a çekilmişse, geri al.
+            if config_mode in ("custom", "performance") and not self._thermal_protection_active:
+                hw_mode = mode  # get_mode()'dan gelen donanım değeri
+                if hw_mode not in ("custom", "performance"):
+                    logger.debug("Mode enforcement: hardware reported '%s' but config wants '%s'. Re-applying.", hw_mode, config_mode)
+                    self._fan.set_mode("custom")
+                    mode = config_mode
+
             custom_curve_str = self._config.get("custom_curve", "[]")
 
-            if mode in ("custom", "performance") and not self._thermal_protection_active:
+            if config_mode in ("custom", "performance") and not self._thermal_protection_active:
                 try:
                     curve = json.loads(custom_curve_str)
                     if not curve or len(curve) == 0:
