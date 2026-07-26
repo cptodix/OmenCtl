@@ -39,6 +39,7 @@ class RGBController:
         self.is_new_driver = self.available and "omen-rgb-keyboard" in self.driver_path
         self.unsupported = not self.available
         self.zone_count = self._detect_zone_count()
+        self._color_cache = {}
 
     def _detect_zone_count(self):
         if not self.available:
@@ -97,6 +98,11 @@ class RGBController:
     def write_zone(self, zone, hex_color):
         if not self.available or not (0 <= zone <= 7):
             return
+            
+        # Önceden yazılan renk aynıysa gereksiz sysfs yazma işlemini (I/O) atla
+        if self._color_cache.get(zone) == hex_color:
+            return
+        self._color_cache[zone] = hex_color
         
         if 0 <= zone <= 3:
             zone = 3 - zone
