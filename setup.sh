@@ -29,6 +29,43 @@ warn()  { echo -e "${YELLOW}[!]${NC} $*"; }
 err()   { echo -e "${RED}[✗]${NC} $*"; exit 1; }
 info()  { echo -e "${CYAN}[i]${NC} $*"; }
 debug() { echo -e "${BLUE}[DEBUG]${NC} $*"; }
+step()  { echo -e "${BLUE}[+]${NC} $*"; }
+BOLD='\033[1m'
+
+print_specs() {
+    clear
+    echo -e "${CYAN}${BOLD}"
+    echo '    ____                        ______ __'
+    echo '   / __ \____ ___  ___  ____   / ____// /_/'
+    echo '  / / / / __ `__ \/ _ \/ __ \ / /    / __/'
+    echo ' / /_/ / / / / / /  __/ / / // /___ / /_ '
+    echo ' \____/_/ /_/ /_/\___/_/ /_/ \____/ \__/'
+    echo -e "${NC}"
+    
+    echo -e "${BLUE}======================================================${NC}"
+    echo -e "${BOLD}              SYSTEM SPECIFICATIONS${NC}"
+    echo -e "${BLUE}======================================================${NC}"
+    
+    local os_name="Unknown"
+    if [ -f /etc/os-release ]; then
+        os_name=$(grep "^PRETTY_NAME=" /etc/os-release | cut -d'=' -f2 | tr -d '"')
+    fi
+    echo -e " ${CYAN}OS:${NC}       $os_name"
+    echo -e " ${CYAN}Kernel:${NC}   $(uname -r)"
+    
+    local cpu_name
+    cpu_name=$(grep -m 1 "model name" /proc/cpuinfo | cut -d':' -f2 | xargs || echo "Unknown")
+    echo -e " ${CYAN}CPU:${NC}      $cpu_name"
+    
+    local ram_info
+    ram_info=$(free -h 2>/dev/null | awk '/^Mem:/ {print $2}')
+    echo -e " ${CYAN}RAM:${NC}      $ram_info"
+    
+    echo -ne " ${CYAN}GPU:${NC}      "
+    lspci | grep -iE 'vga|3d|display' | cut -d':' -f3 | sed 's/^[ \t]*//' | awk 'NR==1{print $0} NR>1{printf "             %s\n", $0}'
+    echo -e "${BLUE}======================================================${NC}"
+    echo ""
+}
 
 # Language detection — sudo root ortamında LANG boş gelebilir, fallback "en"
 # Check multiple locale variables; when running under sudo, try invoking user's locale
@@ -235,7 +272,8 @@ detect_active_power_manager() {
 
 # --- INSTALL DEPENDENCIES ---
 install_dependencies() {
-    info "$(msg installing_deps)"
+    step "Sistem donanımları tespit edildi..."
+    step "$(msg installing_deps)"
 
     # Base packages — power manager NOT included here
     case $PM in
@@ -384,7 +422,7 @@ manage_driver() {
             fi
         fi
         info "Running driver ${action}..."
-        if ! (cd driver && chmod +x setup.sh && ./setup.sh "$action"); then
+        if ! (cd driver && chmod +x setup.sh && ./setup.sh "$action" -y); then
             warn "$(msg driver_failed "$action")"
             if [ "$action" = "install" ]; then
                 warn "Continuing installation — RGB control will be unavailable until driver is fixed."
@@ -444,7 +482,7 @@ manage_driver() {
                     fi
                 fi
 
-                info "Active module path (debug):"
+                step "Active module path (debug):"
                 modinfo hp_wmi 2>/dev/null | grep filename || warn "hp_wmi not found by modinfo"
             fi
         fi
@@ -471,7 +509,7 @@ setup_omen_key_shortcut() {
     de=$(su - "$real_user" -c 'echo "${XDG_CURRENT_DESKTOP:-}"' 2>/dev/null || true)
     de=$(echo "$de" | tr '[:upper:]' '[:lower:]')
 
-    info "Setting up Omen Key shortcut (DE: ${de:-unknown}, user: $real_user)"
+    step "Setting up Omen Key shortcut (DE: ${de:-unknown}, user: $real_user)"
 
     case "$de" in
         *gnome*|*budgie*|*unity*)
@@ -633,18 +671,18 @@ XBIND
 # --- INSTALL APP ---
 do_install() {
     check_root
+    print_specs
     detect_pm
     install_dependencies
 
-    info "$(msg installing_app)"
-
+    step "Arayüz (GUI) bileşenleri kopyalanıyor..."
     mkdir -p "$INSTALL_DIR"
     mkdir -p "$DATA_DIR/images"
     mkdir -p "$CONFIG_DIR"
 
     # Compile and install RyzenAdj
     if [ -d "src/third_party/RyzenAdj" ]; then
-        info "Compiling RyzenAdj..."
+        step "Compiling RyzenAdj..."
         (
             cd src/third_party/RyzenAdj
             mkdir -p build && cd build
@@ -865,6 +903,7 @@ rm -f "$UNINSTALLER_LINK"
 UNINSTALLER
     chmod +x "$UNINSTALLER_LINK"
 
+    step "Arka plan servisleri başlatılıyor..."
     systemctl daemon-reload
     for svc in fan rgb power mux platform; do
         systemctl enable "hpm-${svc}.service" || true
@@ -1081,7 +1120,7 @@ if [ $# -eq 0 ]; then
     exit 0
 fi
 
-NON_INTERACTIVE=false
+NON_INTERACTIVE=true
 ACTION=""
 
 for arg in "$@"; do
