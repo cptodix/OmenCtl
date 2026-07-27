@@ -324,22 +324,7 @@ class FanController:
 
         path = os.path.join(self.hwmon_path, f"fan{fan_num}_target") if self.hwmon_path else None
 
-        # 1. Öncelik: Eğer EC kullanılabiliyorsa ve güvenliyse (8BBE için güvenli yaptık),
-        # donanıma kesin komut göndermek için doğrudan EC kullan! Hwmon Victus'larda bozuk.
-        if self.ec.capabilities.supports_fan_control_ec and not self.ec.is_unsafe_ec_model:
-            # EC may not have been available at boot — try a lazy load now.
-            if not self.ec.has_ec_access:
-                self.ec.try_lazy_ec_load()
-            if self.ec.has_ec_access:
-                max_rpm = self.get_max_speed(fan_num) or 6000
-                pct = int(round(rpm * 100.0 / max_rpm))
-                logger.info("Using direct EC write for fan %d target (%d%%)", fan_num, pct)
-                ok = self.ec.set_fan_speed_pct(fan_num, pct)
-                if ok:
-                    self._last_targets[fan_num] = rpm
-                    return True
-                else:
-                    logger.debug("EC write failed for fan %d target", fan_num)
+        # EC'yi 1. öncelik yapmaktan vazgeçtik çünkü 8BBE'de çalışmıyor, hwmon_target düzeltildi.
                     
         # 2. Öncelik: Hwmon fan_target (EC çalışmazsa veya yoksa)
         if path and sysfs_exists(path):
