@@ -324,7 +324,6 @@ class FanController:
 
         path = os.path.join(self.hwmon_path, f"fan{fan_num}_target") if self.hwmon_path else None
 
-        # EC'yi 1. öncelik yapmaktan vazgeçtik çünkü 8BBE'de çalışmıyor, hwmon_target düzeltildi.
                     
         # 2. Öncelik: Hwmon fan_target (EC çalışmazsa veya yoksa)
         if path and sysfs_exists(path):

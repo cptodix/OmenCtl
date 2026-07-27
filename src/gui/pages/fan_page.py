@@ -1201,15 +1201,30 @@ class FanPage(Gtk.Box):
                     fan_max = max_rpm
                     fan_pct = self._curve_fan_pct_for_temp(active_points, effective_temp, rpm_floor=rpm_floor, fan_max=fan_max)
 
-                    target_rpm = int(max_rpm * fan_pct / 100)
+                    ideal_target_rpm = int(max_rpm * fan_pct / 100)
                     
                     # Anti-Stall Protection: Prevent fan from pulsing at unspinnable low RPMs
                     MIN_SPIN_RPM = 2000
-                    if 0 < target_rpm < MIN_SPIN_RPM:
-                        target_rpm = MIN_SPIN_RPM
+                    if 0 < ideal_target_rpm < MIN_SPIN_RPM:
+                        ideal_target_rpm = MIN_SPIN_RPM
+                        
                     last = self.last_applied_rpm.get(str(fn), -1)
-                    # Increased deadband threshold to 200 RPM to filter small jitter commands
-                    if last >= 0 and abs(target_rpm - last) < 200:
+                    
+                    if last < 0:
+                        # Initial state, set directly
+                        target_rpm = ideal_target_rpm
+                    else:
+                        # Smooth transition (step by max 150 RPM per 1.5s tick)
+                        STEP_SIZE = 150
+                        if ideal_target_rpm > last + STEP_SIZE:
+                            target_rpm = last + STEP_SIZE
+                        elif ideal_target_rpm < last - STEP_SIZE:
+                            target_rpm = last - STEP_SIZE
+                        else:
+                            target_rpm = ideal_target_rpm
+                            
+                    # Deadband threshold to filter small jitter
+                    if last >= 0 and abs(target_rpm - last) < 50:
                         continue
 
                     self.last_applied_rpm[str(fn)] = target_rpm
