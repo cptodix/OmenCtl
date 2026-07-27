@@ -53,7 +53,7 @@ def get_gpu():
     return " / ".join(gpus) if gpus else "Unknown GPU"
 
 def print_info(bus=None):
-        art = [
+    art = [
         "   ____                        ______ __ ",
         "  / __ \\____ ___  ___  ____   / ____// /_/ /",
         " / / / / __ `__ \\/ _ \\/ __ \\ / /    / __/ / ",

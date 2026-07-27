@@ -2989,7 +2989,6 @@ static int hp_wmi_hwmon_write(struct device *dev, enum hwmon_sensor_types type,
 			ret = -EINVAL;
 			break;
 		}
-		val = clamp_val(val, 0, priv->max_rpms[channel]);
 		priv->target_rpms[channel] = val;
 		if (priv->target_rpms[channel ^ 1] == 0)
 			priv->target_rpms[channel ^ 1] = val;

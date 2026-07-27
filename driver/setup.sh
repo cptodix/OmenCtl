@@ -30,7 +30,7 @@ FORCE_CUSTOM_HPWMI=false
 
 # Some boards still require the patched hp-wmi path even on kernel 7.0+.
 case "$BOARD_NAME" in
-    8D41|8D42|8BCD) FORCE_CUSTOM_HPWMI=true ;; # OMEN Max 16 and 16-xd0xxx
+    8D41|8D42|8BCD|8BBE) FORCE_CUSTOM_HPWMI=true ;; # OMEN Max 16, 16-xd0xxx and Victus 8BBE
 esac
 
 STOCK_FAN_SUPPORT=false

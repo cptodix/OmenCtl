@@ -49,9 +49,6 @@ class FanController:
         self.mode = "auto"
         self._fallback_paths = {}
         self._last_targets = {}
-        # Some HP firmware silently ignores fan_target sysfs writes at the hardware level.
-        # We detect this after the first write via readback and permanently fall back to pwm1.
-        self._fan_target_reliable = None  # None=unknown, True/False=probed
         if self.hwmon_path:
             self._detect_fans()
             self._read_max_speeds()
@@ -125,10 +122,6 @@ class FanController:
         for i in self.found_fans:
             max_path = os.path.join(self.hwmon_path, f"fan{i}_max")
             raw = sysfs_read(max_path, 0)
-            # HP Victus/Omen hwmon reports fan_max as a BIOS reference speed
-            # (e.g. 1800/2100 RPM), not the actual physical maximum (~5800/6000).
-            # Values below 3000 RPM are treated as unreliable; we estimate the
-            # real ceiling dynamically from the current fan speed instead.
             if raw >= 3000:
                 self.max_speeds[i] = raw
             else:
@@ -203,6 +196,15 @@ class FanController:
         speed = self._hwmon_read(f"fan{fan_num}_input")
         if speed == 0:
             speed = self._try_fan_speed_fallback(fan_num)
+            
+        current_max = self.max_speeds.get(fan_num, 0)
+        # Dynamically update max_speed if the fan spins much faster than the BIOS reference max
+        if speed > current_max and speed > 3000:
+            # Round up slightly for headroom
+            new_max = max(int(speed * 1.05), 6000)
+            self.max_speeds[fan_num] = new_max
+            logger.info("Fan %d exceeded known max speed (%d). Updating max to %d", fan_num, speed, new_max)
+            
         return speed
 
     def _try_fan_speed_fallback(self, fan_num):
@@ -230,6 +232,13 @@ class FanController:
         val = {"auto": 2, "max": 0, "custom": 1, "performance": 1}.get(mode)
         if val is None:
             return False
+
+        if mode == "auto" and self.hwmon_path:
+            logger.info("Clearing fan targets before switching to auto mode")
+            for i in self.found_fans:
+                t_path = os.path.join(self.hwmon_path, f"fan{i}_target")
+                if sysfs_exists(t_path):
+                    sysfs_write(t_path, 0)
 
         ok = False
         if self.hwmon_path:
@@ -291,14 +300,6 @@ class FanController:
             self.mode = mode
             self._last_targets.clear()
             logger.info("Fan mode set to %s", mode)
-
-            # When switching back to auto, release any outstanding fan targets
-            # so the firmware can fully resume its own fan curve.
-            if mode == "auto" and self.hwmon_path:
-                for i in self.found_fans:
-                    t_path = os.path.join(self.hwmon_path, f"fan{i}_target")
-                    if sysfs_exists(t_path):
-                        sysfs_write(t_path, 0)
         else:
             logger.warning("Failed to set fan mode to %s (all paths failed)", mode)
         return ok
@@ -341,26 +342,8 @@ class FanController:
                     logger.debug("EC write failed for fan %d target", fan_num)
                     
         # 2. Öncelik: Hwmon fan_target (EC çalışmazsa veya yoksa)
-        if self._fan_target_reliable is False and self._has_pwm_fallback():
-            ok = self._set_pwm_fallback_target(fan_num, rpm)
-        elif path and sysfs_exists(path):
+        if path and sysfs_exists(path):
             ok = sysfs_write(path, rpm)
-            # On first write (or while still unprobed), verify via readback.
-            if ok and self._fan_target_reliable is None:
-                written = sysfs_read(path, -1)
-                # 20 % tolerance — some firmware rounds to the nearest step.
-                if rpm > 0 and abs(written - rpm) > rpm * 0.20:
-                    logger.warning(
-                        "fan%d_target readback mismatch (wrote=%d, read=%d) — "
-                        "firmware ignores fan_target; switching to pwm1 control.",
-                        fan_num, rpm, written,
-                    )
-                    self._fan_target_reliable = False
-                    if self._has_pwm_fallback():
-                        ok = self._set_pwm_fallback_target(fan_num, rpm)
-                else:
-                    self._fan_target_reliable = True
-                    logger.info("fan_target readback OK (wrote=%d, read=%d) — using fan_target.", rpm, written)
         # 3. Öncelik: Hwmon pwm1
         elif self._has_pwm_fallback():
             ok = self._set_pwm_fallback_target(fan_num, rpm)
