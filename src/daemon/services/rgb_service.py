@@ -285,10 +285,19 @@ class RGBService:
     def _software_animation_loop(self):
         """Background loop executing software animations on the legacy driver framework."""
         while True:
-            time.sleep(0.05) # ~20Hz update rate framing ticks
-            
             if not self._rgb.is_available() or self._rgb.is_new_driver:
+                time.sleep(2.0)
                 continue
+
+            with self._lock:
+                power = self._config.get("power", True)
+                mode = self._config.get("mode", "static")
+
+            if not power or mode == "static":
+                time.sleep(0.5)
+                continue
+
+            time.sleep(0.05) # ~20Hz update rate framing ticks
 
             with self._lock:
                 power = self._config.get("power", True)
