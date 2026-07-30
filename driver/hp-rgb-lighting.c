@@ -331,9 +331,6 @@ static ssize_t win_lock_store(struct device *dev,
 /* ── omen mux switch (hardware gpu switch) ── */
 static ssize_t omen_mux_show(struct device *dev,
                               struct device_attribute *attr, char *buf) {
-  u32 data = 0;
-  int ret;
-
   /*
    * HP BIOS does not support reading the MUX state via 0x52.
    * Return a dummy value. The python userspace daemon will use lspci.
