@@ -91,7 +91,7 @@ KNOWN_MODELS = {
     "8BCD": ModelCapabilities("8BCD", "OMEN by HP Gaming Laptop 16-xd0xxx", model_year=2023, family="OMEN", has_mux_switch=True, supports_fan_control_ec=False),
     "8E35": ModelCapabilities("8E35", "OMEN MAX 16t-ah000", model_year=2025, family="OMEN", has_mux_switch=True, supports_fan_control_ec=True, has_per_key_rgb=True),
     "8E41": ModelCapabilities("8E41", "OMEN MAX 16-ah0xxx", model_year=2025, family="OMEN", has_mux_switch=True, supports_fan_control_ec=False, has_per_key_rgb=True),
-    "8D88": ModelCapabilities("8D88", "OMEN MAX Gaming Laptop 16-ak0xxx", model_year=2025, family="OMEN", has_mux_switch=True, supports_fan_control_ec=False, supports_fan_control_wmi=True, has_four_zone_rgb=True, has_per_key_rgb=False, notes="Ryzen AI 7 350 / RTX 5070 Ti. Requires Omen HPC WMI GUID support in hp-wmi."),
+    "8D88": ModelCapabilities("8D88", "OMEN MAX Gaming Laptop 16-ak0xxx", model_year=2025, family="OMEN", has_mux_switch=True, supports_fan_control_ec=False, supports_fan_control_wmi=True, has_per_key_rgb=True, notes="Ryzen AI 7 350 / RTX 5070 Ti. Requires Omen HPC WMI GUID support in hp-wmi."),
     "8C77": ModelCapabilities("8C77", "OMEN by HP Gaming Laptop 16-wf1xxx", model_year=2024, family="OMEN", has_mux_switch=True, supports_fan_control_ec=False),
     "8C78": ModelCapabilities("8C78", "OMEN by HP Gaming Laptop 16-wf1xxx", model_year=2024, family="OMEN", has_mux_switch=True, supports_fan_control_ec=False),
 
@@ -118,6 +118,7 @@ KNOWN_MODELS = {
     "8BAF": ModelCapabilities("8BAF", "OMEN 16 (2021) Intel", model_year=2021, family="OMEN", has_mux_switch=True, supports_gpu_power_boost=True),
     "8BB0": ModelCapabilities("8BB0", "OMEN 16 (2021) AMD", model_year=2021, family="OMEN", has_mux_switch=True, supports_undervolt=False),
     "8CD0": ModelCapabilities("8CD0", "OMEN 16 (2022) Intel", model_year=2022, family="OMEN", has_mux_switch=True, supports_gpu_power_boost=True),
+    "8A43": ModelCapabilities("8A43", "OMEN 16 (2022) n0xxx AMD", model_year=2022, family="OMEN", has_mux_switch=True, supports_gpu_power_boost=True, supports_undervolt=False, notes="GitHub #121 — OMEN 16-n0xxx AMD. Exact same profile as 8A44."),
     "8A44": ModelCapabilities("8A44", "OMEN 16 (2022) n0xxx AMD", model_year=2022, family="OMEN", has_mux_switch=True, supports_gpu_power_boost=True, supports_undervolt=False, notes="GitHub #112 — OMEN 16-n0xxx. Capabilities inferred from adjacent OMEN 16 generations; needs user verification."),
     "8BCA": ModelCapabilities("8BCA", "OMEN 16 (2023) wf0xxx Intel", model_year=2023, family="OMEN", has_mux_switch=True, supports_gpu_power_boost=True),
     "8C76": ModelCapabilities("8C76", "OMEN 16 (2024) wf1xxx Intel", model_year=2024, family="OMEN", has_mux_switch=True, supports_gpu_power_boost=True, notes="Discord HUrON / HP OMEN 16-WF1015ns 9U8J3EA — ProductId 8C76, i9-14900HX + RTX 4080, BIOS F.19, WMI V1/classic 55-level fan control. Exact entry replaces low-confidence inferred sibling match."),
