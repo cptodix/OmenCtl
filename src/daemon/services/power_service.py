@@ -81,6 +81,9 @@ class PowerProfileController:
         self.bus = SystemBus()
         self.proxy = None
 
+        self.has_auto_cpufreq = False
+        self.has_tlp = False
+
         try:
             has_external_manager = False
             for tool in ("tlp", "auto-cpufreq"):
@@ -88,7 +91,10 @@ class PowerProfileController:
                 if res.stdout.strip() == "active":
                     has_external_manager = True
                     logger.info("PowerProfileController: Detected external manager '%s'", tool)
-                    break
+                    if tool == "auto-cpufreq":
+                        self.has_auto_cpufreq = True
+                    elif tool == "tlp":
+                        self.has_tlp = True
         except Exception:
             has_external_manager = False
 
@@ -123,6 +129,7 @@ class PowerProfileController:
                 self.proxy = None
                 self.available = False
                 logger.warning("PowerProfileController: No power profile backend found")
+
 
     def get_profiles(self):
         if not self.available:
@@ -253,6 +260,40 @@ class PowerProfileController:
     def set_profile(self, profile):
         if not self.available:
             return False
+
+        if self.has_auto_cpufreq:
+            try:
+                if profile == "performance":
+                    ac_target = "performance"
+                elif profile in ("eco", "power-saver", "quiet"):
+                    ac_target = "powersave"
+                else:
+                    ac_target = "reset"
+                subprocess.run(["auto-cpufreq", "--force", ac_target], capture_output=True, timeout=2.0)
+                logger.info("auto-cpufreq synced to '%s'", ac_target)
+            except Exception as e:
+                logger.warning("Failed to sync auto-cpufreq: %s", e)
+
+        if self.has_tlp:
+            try:
+                tlp_d = "/etc/tlp.d"
+                conf_path = f"{tlp_d}/99-omenctl-profile.conf"
+                if os.path.exists(tlp_d):
+                    # Map OmenCtl profile to TLP profile
+                    tlp_target = {"performance": "PRF", "eco": "SAV", "power-saver": "SAV", "quiet": "SAV"}.get(profile, "BAL")
+                    with open(conf_path, "w") as f:
+                        f.write(f"TLP_AUTO_SWITCH=0\nTLP_PROFILE_DEFAULT={tlp_target}\n")
+                    
+                    # Remove the old platform-only conflict drop-in if it exists
+                    old_conf = f"{tlp_d}/99-omenctl-platform.conf"
+                    if os.path.exists(old_conf):
+                        os.remove(old_conf)
+                        
+                    subprocess.run(["tlp", "start"], capture_output=True, timeout=2.0)
+                    logger.info("TLP synced to '%s'", tlp_target)
+            except Exception as e:
+                logger.warning("Failed to sync TLP: %s", e)
+
         try:
             ok = False
             if self.mode == "ppd":
