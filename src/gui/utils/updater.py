@@ -15,7 +15,7 @@ GITHUB_RELEASES_URL = "https://github.com/yunusemreyl/OmenCtl/releases/latest"
 class OmenUpdater:
     def __init__(self, current_version, T):
         """
-        :param current_version: string, e.g. "1.6.5"
+        :param current_version: string, e.g. "1.6.6"
         :param T: translation function for UI strings
         """
         self.current_version = current_version

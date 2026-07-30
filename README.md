@@ -38,16 +38,21 @@ An open-source, root-daemon powered GTK4 tool for managing performance profiles,
 * `git`
 
 ### Quick Start
-Clone the repository and run the unified setup script. This script handles compiling the custom kernel modules and setting up the SystemD daemon (`omenctld`).
+To install the latest stable release, run our unified web installer. This script will fetch the latest version, compile the custom kernel modules, and set up the SystemD daemon (`omenctld`).
 
 ```bash
-# Clone the repository
+# Download and run the web installer
+curl -sL https://raw.githubusercontent.com/yunusemreyl/OmenCtl/main/install.sh | sudo bash
+```
+
+### For Developers (Bleeding Edge)
+If you want to install the latest unreleased changes from the `main` branch:
+
+```bash
 git clone https://github.com/yunusemreyl/OmenCtl.git
 cd OmenCtl
-
-# Run the unified installer
 chmod +x setup.sh
-sudo ./setup.sh install
+sudo ./setup.sh
 ```
 
 > **Note:** To upgrade an existing installation without losing your fan curves and settings, simply run `sudo ./setup.sh update`.
