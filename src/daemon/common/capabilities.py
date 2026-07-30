@@ -91,7 +91,7 @@ KNOWN_MODELS = {
     "8BCD": ModelCapabilities("8BCD", "OMEN by HP Gaming Laptop 16-xd0xxx", model_year=2023, family="OMEN", has_mux_switch=True, supports_fan_control_ec=False),
     "8E35": ModelCapabilities("8E35", "OMEN MAX 16t-ah000", model_year=2025, family="OMEN", has_mux_switch=True, supports_fan_control_ec=True),
     "8E41": ModelCapabilities("8E41", "OMEN MAX 16-ah0xxx", model_year=2025, family="OMEN", has_mux_switch=True, supports_fan_control_ec=False),
-    "8D88": ModelCapabilities("8D88", "OMEN MAX Gaming Laptop 16-ak0xxx", model_year=2025, family="OMEN", has_mux_switch=True, supports_fan_control_ec=False, notes="Ryzen AI 7 350 / RTX 5070 Ti. BIOS WMI GUID 1F4C91EB unbound — OS has no effective fan control; BIOS Fan Always On required"),
+    "8D88": ModelCapabilities("8D88", "OMEN MAX Gaming Laptop 16-ak0xxx", model_year=2025, family="OMEN", has_mux_switch=True, supports_fan_control_ec=False, supports_fan_control_wmi=True, has_per_key_rgb=True, notes="Ryzen AI 7 350 / RTX 5070 Ti. Requires Omen HPC WMI GUID support in hp-wmi."),
     "8C77": ModelCapabilities("8C77", "OMEN by HP Gaming Laptop 16-wf1xxx", model_year=2024, family="OMEN", has_mux_switch=True, supports_fan_control_ec=False),
     "8C78": ModelCapabilities("8C78", "OMEN by HP Gaming Laptop 16-wf1xxx", model_year=2024, family="OMEN", has_mux_switch=True, supports_fan_control_ec=False),
 

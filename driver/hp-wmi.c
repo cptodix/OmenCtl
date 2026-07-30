@@ -42,9 +42,13 @@ MODULE_LICENSE("GPL");
 
 MODULE_ALIAS("wmi:95F24279-4D7B-4334-9387-ACCDC67EF61C");
 MODULE_ALIAS("wmi:5FB7F034-2C63-45E9-BE91-3D44E2C707E4");
+MODULE_ALIAS("wmi:1F4C91EB-DC5C-460B-951D-C7CB9B4B8D5E");
 
 #define HPWMI_EVENT_GUID "95F24279-4D7B-4334-9387-ACCDC67EF61C"
 #define HPWMI_BIOS_GUID  "5FB7F034-2C63-45E9-BE91-3D44E2C707E4"
+#define HPWMI_OMEN_HPC_GUID "1F4C91EB-DC5C-460B-951D-C7CB9B4B8D5E"
+
+static const char *active_bios_guid = HPWMI_BIOS_GUID;
 
 enum hp_ec_offsets {
 	HP_EC_OFFSET_UNKNOWN                    = 0x00,
@@ -687,7 +691,7 @@ static int hp_wmi_perform_query(int query, enum hp_wmi_command command,
 		memcpy(args->data, buffer, flex_array_size(args, data, insize));
 
 	mutex_lock(&hp_wmi_mutex);
-	ret = wmi_evaluate_method(HPWMI_BIOS_GUID, 0, mid, &input, &output);
+	ret = wmi_evaluate_method(active_bios_guid, 0, mid, &input, &output);
 	mutex_unlock(&hp_wmi_mutex);
 	if (ret)
 		goto out_free;
@@ -3261,8 +3265,18 @@ static void __init setup_active_thermal_profile_params(void)
 static int __init hp_wmi_init(void)
 {
 	int event_capable = wmi_has_guid(HPWMI_EVENT_GUID);
-	int bios_capable  = wmi_has_guid(HPWMI_BIOS_GUID);
+	int bios_capable;
 	int err, tmp = 0;
+
+	if (wmi_has_guid(HPWMI_OMEN_HPC_GUID)) {
+		active_bios_guid = HPWMI_OMEN_HPC_GUID;
+		bios_capable = 1;
+	} else if (wmi_has_guid(HPWMI_BIOS_GUID)) {
+		active_bios_guid = HPWMI_BIOS_GUID;
+		bios_capable = 1;
+	} else {
+		bios_capable = 0;
+	}
 
 	if (!bios_capable && !event_capable)
 		return -ENODEV;
