@@ -692,6 +692,9 @@ static int hp_wmi_perform_query(int query, enum hp_wmi_command command,
 
 	mutex_lock(&hp_wmi_mutex);
 	ret = wmi_evaluate_method(active_bios_guid, 0, mid, &input, &output);
+	if (ret && active_bios_guid == HPWMI_OMEN_HPC_GUID) {
+		ret = wmi_evaluate_method(HPWMI_BIOS_GUID, 0, mid, &input, &output);
+	}
 	mutex_unlock(&hp_wmi_mutex);
 	if (ret)
 		goto out_free;

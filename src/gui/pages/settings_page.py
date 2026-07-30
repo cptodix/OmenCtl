@@ -7,6 +7,7 @@ import gi
 gi.require_version('Gtk', '4.0')
 from gi.repository import Gtk, GLib, Gdk
 from widgets.smooth_scroll import SmoothScrolledWindow
+from widgets.mapping_wizard import MappingWizard
 
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -617,7 +618,13 @@ class SettingsPage(Gtk.Box):
         content.append(debug_card)
 
         # ══════════════════════════════════════════════════════════════════════
-        # 6. ABOUT CARD
+        # 6. PER-KEY RGB MAPPING
+        # ══════════════════════════════════════════════════════════════════════
+        self.mapping_wizard = MappingWizard()
+        content.append(self.mapping_wizard)
+
+        # ══════════════════════════════════════════════════════════════════════
+        # 7. ABOUT CARD
         # ══════════════════════════════════════════════════════════════════════
         about_card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
         about_card.add_css_class("settings-card")

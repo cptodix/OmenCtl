@@ -20,7 +20,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from common.logging_config import setup_logging
 from common.config import ServiceConfig
 from common.dbus_helpers import run_service
-from services.hid_per_key import HidPerKeyBackend
 
 logger = setup_logging("rgb")
 
@@ -194,8 +193,6 @@ class RGBService:
         <method name="SetGlobal"><arg type="b" name="p" direction="in"/><arg type="i" name="b" direction="in"/><arg type="s" name="d" direction="in"/><arg type="s" name="resp" direction="out"/></method>
         <method name="GetState"><arg type="s" name="j" direction="out"/></method>
         <method name="SetWinLock"><arg type="b" name="locked" direction="in"/><arg type="s" name="result" direction="out"/></method>
-        <method name="TestSingleKey"><arg type="i" name="index" direction="in"/><arg type="s" name="resp" direction="out"/></method>
-        <method name="SavePerKeyMap"><arg type="s" name="map_json" direction="in"/><arg type="s" name="resp" direction="out"/></method>
         <method name="Ping"><arg type="s" name="resp" direction="out"/></method>
       </interface>
     </node>
@@ -203,8 +200,6 @@ class RGBService:
 
     def __init__(self):
         self._rgb = RGBController()
-        self._per_key = HidPerKeyBackend()
-        self._per_key_map = {}
         self._config = ServiceConfig(
             "rgb",
             {
@@ -242,19 +237,8 @@ class RGBService:
         if self._rgb.is_available():
             self._rgb.write_win_lock(self._config.get("win_lock", False))
 
-        self._load_per_key_map()
-
         # Start the background software engine animation thread loop
         threading.Thread(target=self._software_animation_loop, daemon=True).start()
-        
-    def _load_per_key_map(self):
-        map_path = os.path.expanduser("~/.config/omenctl/per_key_map.json")
-        if os.path.exists(map_path):
-            try:
-                with open(map_path, "r") as f:
-                    self._per_key_map = json.load(f)
-            except Exception as e:
-                logger.error(f"Failed to load per-key map: {e}")
             
     def _apply_current_state(self):
         if not self._rgb.is_available():
@@ -266,19 +250,12 @@ class RGBService:
 
             if not power or brightness == 0:
                 self._rgb.write_brightness(0)
-                if self._per_key.is_available():
-                    self._per_key.send_enter_per_key_mode(0)
                 return
 
             mode = self._config.get("mode", "static")
             speed = self._config.get("speed", 50)
             colors = self._config.get("colors", ["FF0000"] * 8)
 
-            if self._per_key.is_available():
-                self._per_key.send_enter_per_key_mode(brightness)
-                if mode == "static":
-                    self._per_key.set_zone_colors(colors[:4])
-                
             if self._rgb.is_new_driver:
                 self._rgb.write_brightness(brightness)
                 self._rgb.write_mode(mode, speed)
@@ -474,28 +451,6 @@ class RGBService:
         self._rgb.write_win_lock(bool(locked))
         self._config.save()
         return "OK"
-
-    def TestSingleKey(self, index):
-        logger.info(f"TestSingleKey: index={index}")
-        success = self._per_key.test_single_key(index, 255, 0, 0)
-        return "OK" if success else "FAIL"
-
-    def SavePerKeyMap(self, map_json):
-        logger.info("SavePerKeyMap: received new map")
-        try:
-            parsed = json.loads(map_json)
-            map_path = os.path.expanduser("~/.config/omenctl/per_key_map.json")
-            os.makedirs(os.path.dirname(map_path), exist_ok=True)
-            with open(map_path, "w") as f:
-                json.dump(parsed, f)
-            self._per_key_map = parsed
-            
-            # Reapply current state with the new map
-            self._apply_current_state()
-            return "OK"
-        except Exception as e:
-            logger.error(f"Failed to save per-key map: {e}")
-            return "FAIL"
 
     def Ping(self):
         return "OK"

@@ -101,6 +101,12 @@ class FanController:
                     continue
         self.found_fans.sort()
         self.fan_count = len(self.found_fans)
+        
+        if self.fan_count == 0 and sysfs_exists(os.path.join(self.hwmon_path, "pwm1_enable")):
+            logger.info("WMI mode control found but no fan nodes exposed by kernel. Populating placeholder fans for GUI.")
+            self.found_fans = [1, 2]
+            self.fan_count = 2
+            self.max_speeds = {1: 6000, 2: 6000}
 
     def _find_fallback_path(self, fan_num):
         for path in glob.glob("/sys/class/hwmon/hwmon*/fan*_input"):
@@ -369,7 +375,9 @@ class FanController:
         return sysfs_write(os.path.join(self.hwmon_path, "pwm1"), pwm)
 
     def is_available(self):
-        return (self.hwmon_path is not None and self.fan_count > 0) or self.ec.has_ec_access
+        has_wmi_mode = self.hwmon_path is not None and sysfs_exists(os.path.join(self.hwmon_path, "pwm1_enable"))
+        has_profile = sysfs_exists("/sys/firmware/acpi/platform_profile") or sysfs_exists("/sys/devices/platform/hp-wmi/platform_profile")
+        return (self.hwmon_path is not None and self.fan_count > 0) or self.ec.has_ec_access or has_wmi_mode or has_profile
 
     def get_mode(self):
         if self.hwmon_path:
