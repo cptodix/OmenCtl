@@ -30,6 +30,7 @@
 #include <linux/platform_device.h>
 #include <linux/platform_profile.h>
 #include <linux/power_supply.h>
+#include <linux/reboot.h>
 #include <linux/rfkill.h>
 #include <linux/slab.h>
 #include <linux/string.h>
@@ -516,9 +517,11 @@ static struct input_dev    *camera_shutter_input_dev;
 static struct platform_device *hp_wmi_platform_dev;
 static struct device       *platform_profile_device;
 static struct notifier_block platform_power_source_nb;
+static struct notifier_block hp_wmi_reboot_nb;
 static enum platform_profile_option active_platform_profile;
 static bool platform_profile_support;
 static bool zero_insize_support;
+static bool hp_wmi_reboot_notifier_registered;
 
 static bool force_fan_control_support;
 module_param(force_fan_control_support, bool, 0444);
@@ -555,6 +558,8 @@ static const char *const tablet_chassis_types[] = {
 #define GPU_FAN 1
 #define VICTUS_S_FALLBACK_MAX_RPM_FW 50
 #define VICTUS_S_FALLBACK_MAX_RPM    (VICTUS_S_FALLBACK_MAX_RPM_FW * 100)
+/* BIOS fan table values are in 100 RPM units; < 30 means a bogus 2000 RPM cap. */
+#define VICTUS_S_MIN_SANE_MAX_RPM_FW 30
 
 enum pwm_modes {
 	PWM_MODE_MAX    = 0,
@@ -1021,6 +1026,25 @@ static int hp_wmi_fan_speed_max_reset(struct hp_wmi_hwmon_priv *priv)
 {
 	/* hp_wmi_fan_speed_reset already calls hp_wmi_fan_speed_max_set(0) */
 	return hp_wmi_fan_speed_reset(priv);
+}
+
+static void hp_wmi_reset_fans_to_auto(struct hp_wmi_hwmon_priv *priv)
+{
+	int ret;
+
+	if (!priv)
+		return;
+
+	cancel_delayed_work_sync(&priv->keep_alive_dwork);
+
+	mutex_lock(&priv->hwmon_lock);
+	priv->mode = PWM_MODE_AUTO;
+	ret = hp_wmi_fan_speed_max_reset(priv);
+	if (ret < 0)
+		pr_warn("Failed to reset fan control to auto during shutdown/reboot: %d\n", ret);
+	else
+		priv->prev_mode = PWM_MODE_AUTO;
+	mutex_unlock(&priv->hwmon_lock);
 }
 
 static int __init hp_wmi_bios_2008_later(void)
@@ -2497,6 +2521,24 @@ static inline void victus_s_unregister_powersource_event_handler(void)
 	unregister_acpi_notifier(&platform_power_source_nb);
 }
 
+static int hp_wmi_reboot_event(struct notifier_block *nb,
+			       unsigned long action, void *data)
+{
+	struct hp_wmi_hwmon_priv *priv;
+
+	if (action != SYS_RESTART && action != SYS_HALT &&
+	    action != SYS_POWER_OFF)
+		return NOTIFY_DONE;
+
+	if (!hp_wmi_platform_dev)
+		return NOTIFY_DONE;
+
+	priv = platform_get_drvdata(hp_wmi_platform_dev);
+	hp_wmi_reset_fans_to_auto(priv);
+
+	return NOTIFY_DONE;
+}
+
 static const struct platform_profile_ops platform_profile_omen_ops = {
 	.probe       = hp_wmi_platform_profile_probe,
 	.profile_get = platform_profile_omen_get,
@@ -2628,6 +2670,14 @@ static int __init hp_wmi_bios_setup(struct platform_device *device)
 	if (err < 0)
 		return err;
 
+	hp_wmi_reboot_nb.notifier_call = hp_wmi_reboot_event;
+	err = register_reboot_notifier(&hp_wmi_reboot_nb);
+	if (err) {
+		pr_warn("Failed to install reboot notifier for fan reset (%d)\n", err);
+	} else {
+		hp_wmi_reboot_notifier_registered = true;
+	}
+
 	err = thermal_profile_setup(device);
 	if (err < 0)
 		pr_warn("Failed to set up thermal profile (%d), fan control still available\n", err);
@@ -2659,8 +2709,12 @@ static void __exit hp_wmi_bios_remove(struct platform_device *device)
 	}
 
 	priv = platform_get_drvdata(device);
-	if (priv)
-		cancel_delayed_work_sync(&priv->keep_alive_dwork);
+	hp_wmi_reset_fans_to_auto(priv);
+
+	if (hp_wmi_reboot_notifier_registered) {
+		unregister_reboot_notifier(&hp_wmi_reboot_nb);
+		hp_wmi_reboot_notifier_registered = false;
+	}
 }
 
 static int hp_wmi_resume_handler(struct device *device)
@@ -3135,6 +3189,14 @@ static int hp_wmi_setup_fan_settings(struct hp_wmi_hwmon_priv *priv)
 			gpu_delta = (fan_table->entries[0].gpu_rpm > fan_table->entries[0].cpu_rpm)
 				    ? fan_table->entries[0].gpu_rpm - fan_table->entries[0].cpu_rpm
 				    : 0;
+
+			if (max_rpm < VICTUS_S_MIN_SANE_MAX_RPM_FW || max_rpm < min_rpm) {
+				pr_warn("Firmware fan table reported implausible limits (min=%u max=%u), using safe fallback limits\n",
+					min_rpm, max_rpm);
+				hp_wmi_set_fallback_fan_limits(priv);
+				priv->uses_victus_s_fan_commands = true;
+				return 0;
+			}
 			
 			priv->min_rpm = min_rpm;
 			priv->max_rpm = max_rpm;
