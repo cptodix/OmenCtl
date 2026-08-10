@@ -64,6 +64,17 @@ sudo ./setup.sh uninstall
 
 *(For NixOS users, OmenCtl comes with built-in Nix Flake support. See the [flake.nix](flake.nix) or configuration samples).*
 
+### ⚠️ Boot Troubleshooting (Important)
+If your machine stops booting after an update, please collect technical details first:
+
+- Exact on-screen error (`No bootable device`, `GRUB rescue`, black screen, BSOD, etc.)
+- Whether BIOS/UEFI setup is still accessible
+- Any recent kernel, BIOS, or bootloader updates done at the same time
+- Linux distribution and bootloader used (GRUB, systemd-boot, etc.)
+- Secure Boot status (enabled/disabled)
+
+OmenCtl does **not** modify the EFI system partition or your bootloader configuration. It runs in userspace and installs Linux services/modules only. These details help identify the real boot cause quickly.
+
 ---
 
 ## 📖 Deep Dive Documentation
