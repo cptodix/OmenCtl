@@ -1,6 +1,7 @@
 import os
 import sys
 import tempfile
+import threading
 import types
 import unittest
 from unittest import mock
@@ -112,6 +113,69 @@ class FanControllerSysfsTest(unittest.TestCase):
              mock.patch.object(fan_service, "sysfs_read_str", return_value="performance"):
             controller._read_current_mode()
         self.assertEqual(controller.mode, "max")
+
+
+class FanServiceThermalProtectionTest(unittest.TestCase):
+    def make_service(self, enabled=True):
+        service = fan_service.FanService.__new__(fan_service.FanService)
+        service._cache_lock = threading.Lock()
+        service._thermal_protection_active = False
+        service._thermal_protection_entered_at = 0.0
+        service._pre_protection_mode = None
+        service._fan_cache = {}
+        service._config = mock.Mock()
+        service._fan = mock.Mock()
+        service._fan.get_mode.return_value = "auto"
+        service._fan.found_fans = []
+        service._fan.is_available.return_value = True
+        service._fan.get_fan_count.return_value = 0
+        service._fan.supports_custom_mode.return_value = True
+
+        state = {
+            "fan_mode": "auto",
+            "custom_curve": "[]",
+            "thermal_protection_enabled": enabled,
+        }
+
+        def _get(key, default=None):
+            return state.get(key, default)
+
+        def _set(key, value):
+            state[key] = value
+
+        service._config.get.side_effect = _get
+        service._config.set.side_effect = _set
+        return service
+
+    def test_monitor_loop_does_not_force_max_when_thermal_protection_disabled(self):
+        service = self.make_service(enabled=False)
+        service._get_max_temp = mock.Mock(return_value=96.0)
+        with mock.patch.object(fan_service.system_sleeping, "is_set", return_value=False), \
+             mock.patch.object(fan_service, "send_desktop_notification"), \
+             mock.patch.object(fan_service.time, "sleep", side_effect=RuntimeError("stop-loop")):
+            with self.assertRaisesRegex(RuntimeError, "stop-loop"):
+                service._monitor_loop()
+
+        self.assertFalse(service._thermal_protection_active)
+        service._fan.set_mode.assert_not_called()
+
+    def test_monitor_loop_forces_max_when_thermal_protection_enabled(self):
+        service = self.make_service(enabled=True)
+        service._get_max_temp = mock.Mock(return_value=96.0)
+        with mock.patch.object(fan_service.system_sleeping, "is_set", return_value=False), \
+             mock.patch.object(fan_service, "send_desktop_notification"), \
+             mock.patch.object(fan_service.time, "sleep", side_effect=RuntimeError("stop-loop")):
+            with self.assertRaisesRegex(RuntimeError, "stop-loop"):
+                service._monitor_loop()
+
+        self.assertTrue(service._thermal_protection_active)
+        service._fan.set_mode.assert_called_with("max")
+
+    def test_set_thermal_protection_enabled_persists_flag(self):
+        service = self.make_service(enabled=True)
+        self.assertEqual(service.SetThermalProtectionEnabled(False), "OK")
+        self.assertFalse(service.GetThermalProtectionEnabled())
+        service._config.save.assert_called_once()
 
 
 if __name__ == "__main__":

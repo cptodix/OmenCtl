@@ -433,6 +433,8 @@ class FanService:
         <method name="SetFanTarget"><arg type="i" name="fan" direction="in"/><arg type="i" name="rpm" direction="in"/><arg type="s" name="resp" direction="out"/></method>
         <method name="GetFanInfo"><arg type="s" name="j" direction="out"/></method>
         <method name="SaveCustomCurve"><arg type="s" name="curve_json" direction="in"/><arg type="s" name="resp" direction="out"/></method>
+        <method name="SetThermalProtectionEnabled"><arg type="b" name="enabled" direction="in"/><arg type="s" name="resp" direction="out"/></method>
+        <method name="GetThermalProtectionEnabled"><arg type="b" name="enabled" direction="out"/></method>
         <method name="Ping"><arg type="s" name="resp" direction="out"/></method>
       </interface>
     </node>
@@ -440,7 +442,7 @@ class FanService:
 
     def __init__(self):
         self._fan = FanController()
-        self._config = ServiceConfig("fan", {"fan_mode": "auto", "custom_curve": "[]"})
+        self._config = ServiceConfig("fan", {"fan_mode": "auto", "custom_curve": "[]", "thermal_protection_enabled": True})
         self._config.load()
 
         self._cache_lock = threading.Lock()
@@ -454,6 +456,7 @@ class FanService:
             "custom_curve": self._config.get("custom_curve", "[]"),
             "fans": {},
             "thermal_protection": False,
+            "thermal_protection_enabled": bool(self._config.get("thermal_protection_enabled", True)),
         }
         self._thermal_protection_active = False
         self._thermal_protection_entered_at = 0.0
@@ -542,46 +545,55 @@ class FanService:
                 if speeds and all(s < 100 for s in speeds):
                     fans_stalled = True
 
-            # Thermal Protection Mode
-            if (temp > 95.0 or fans_stalled) and not self._thermal_protection_active:
-                if fans_stalled:
-                    logger.critical("FAN STALL DETECTED! Temp is %d°C but fans are at 0 RPM! Activating Protection.", temp)
-                else:
-                    logger.warning("Temperature exceeded 95°C (%d°C). Activating Thermal Protection Mode (Max Fan).", temp)
-                self._thermal_protection_active = True
-                self._thermal_protection_entered_at = time.monotonic()
-                self._pre_protection_mode = self._config.get("fan_mode", mode)
-                self._fan.set_mode("max")
-                
-                reason = "Fanlarınız dış bir müdahale ile durdurulduğu için" if fans_stalled else "Yüksek sıcaklıklardan cihazınızı korumak için"
-                send_desktop_notification(
-                    "OmenCtl Koruma Modu",
-                    f"{reason} max fan modu aktif edildi."
-                )
-            elif self._thermal_protection_active:
-                elapsed = time.monotonic() - self._thermal_protection_entered_at
-                # Exit conditions:
-                # 1. Temperature dropped below 85°C (10°C hysteresis from 95°C entry), OR
-                # 2. Protection active >5 minutes AND temp below 90°C (timeout safety net)
-                should_exit = temp <= 85.0 or (elapsed > 300.0 and temp <= 90.0)
+            thermal_protection_enabled = bool(self._config.get("thermal_protection_enabled", True))
 
-                if should_exit:
-                    if elapsed > 300.0:
-                        logger.info("Thermal Protection timeout after %.0fs (temp=%d°C). Deactivating.", elapsed, temp)
+            # Thermal Protection Mode
+            if thermal_protection_enabled:
+                if (temp > 95.0 or fans_stalled) and not self._thermal_protection_active:
+                    if fans_stalled:
+                        logger.critical("FAN STALL DETECTED! Temp is %d°C but fans are at 0 RPM! Activating Protection.", temp)
                     else:
-                        logger.info("Temperature dropped to %d°C. Deactivating Thermal Protection Mode.", temp)
-                    self._thermal_protection_active = False
-                    self._thermal_protection_entered_at = 0.0
-                    restore = self._pre_protection_mode or "auto"
-                    self._fan.set_mode(restore)
+                        logger.warning("Temperature exceeded 95°C (%d°C). Activating Thermal Protection Mode (Max Fan).", temp)
+                    self._thermal_protection_active = True
+                    self._thermal_protection_entered_at = time.monotonic()
+                    self._pre_protection_mode = self._config.get("fan_mode", mode)
+                    self._fan.set_mode("max")
+
+                    reason = "Fanlarınız dış bir müdahale ile durdurulduğu için" if fans_stalled else "Yüksek sıcaklıklardan cihazınızı korumak için"
                     send_desktop_notification(
                         "OmenCtl Koruma Modu",
-                        f"Sıcaklık normale döndü ({int(temp)}°C). Fanlar eski moduna ({restore}) geri getirildi."
+                        f"{reason} max fan modu aktif edildi."
                     )
-                else:
-                    # Keep ensuring max mode while protection is active
-                    if self._fan.get_mode() != "max":
-                        self._fan.set_mode("max")
+                elif self._thermal_protection_active:
+                    elapsed = time.monotonic() - self._thermal_protection_entered_at
+                    # Exit conditions:
+                    # 1. Temperature dropped below 85°C (10°C hysteresis from 95°C entry), OR
+                    # 2. Protection active >5 minutes AND temp below 90°C (timeout safety net)
+                    should_exit = temp <= 85.0 or (elapsed > 300.0 and temp <= 90.0)
+
+                    if should_exit:
+                        if elapsed > 300.0:
+                            logger.info("Thermal Protection timeout after %.0fs (temp=%d°C). Deactivating.", elapsed, temp)
+                        else:
+                            logger.info("Temperature dropped to %d°C. Deactivating Thermal Protection Mode.", temp)
+                        self._thermal_protection_active = False
+                        self._thermal_protection_entered_at = 0.0
+                        restore = self._pre_protection_mode or "auto"
+                        self._fan.set_mode(restore)
+                        send_desktop_notification(
+                            "OmenCtl Koruma Modu",
+                            f"Sıcaklık normale döndü ({int(temp)}°C). Fanlar eski moduna ({restore}) geri getirildi."
+                        )
+                    else:
+                        # Keep ensuring max mode while protection is active
+                        if self._fan.get_mode() != "max":
+                            self._fan.set_mode("max")
+            elif self._thermal_protection_active:
+                logger.info("Thermal protection disabled by user. Restoring previous fan mode.")
+                self._thermal_protection_active = False
+                self._thermal_protection_entered_at = 0.0
+                restore = self._pre_protection_mode or self._config.get("fan_mode", "auto")
+                self._fan.set_mode(restore)
 
             mode = self._fan.get_mode()
 
@@ -639,6 +651,7 @@ class FanService:
                 "custom_curve": custom_curve_str,
                 "fans": fans_data,
                 "thermal_protection": self._thermal_protection_active,
+                "thermal_protection_enabled": thermal_protection_enabled,
             }
 
             with self._cache_lock:
@@ -699,6 +712,21 @@ class FanService:
         self._config.set("custom_curve", curve_json)
         self._config.save()
         return "OK"
+
+    def SetThermalProtectionEnabled(self, enabled):
+        enabled = bool(enabled)
+        self._config.set("thermal_protection_enabled", enabled)
+        self._config.save()
+        if not enabled and self._thermal_protection_active:
+            logger.info("Thermal protection disabled while active. Restoring previous fan mode.")
+            self._thermal_protection_active = False
+            self._thermal_protection_entered_at = 0.0
+            restore = self._pre_protection_mode or self._config.get("fan_mode", "auto")
+            self._fan.set_mode(restore)
+        return "OK"
+
+    def GetThermalProtectionEnabled(self):
+        return bool(self._config.get("thermal_protection_enabled", True))
 
     def Ping(self):
         return "OK"

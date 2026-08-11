@@ -77,6 +77,8 @@ TRANSLATIONS = {
         # Settings page
         "appearance": "GÖRÜNÜM", "theme": "Tema", "lang_label": "Dil / Language",
         "dark": "Koyu", "light": "Açık", "system": "Sistem Uyarlanır",
+        "thermal_protection": "Termal Koruma",
+        "thermal_protection_desc": "90°C üzerindeki ani fan hızlanmasını önlemek için koruma modunu aç/kapat.",
         "updates": "GÜNCELLEMELER", "current_ver": "Mevcut sürüm",
         "per_key_wizard": "Per-Key RGB Eşleştirme Sihirbazı",
         "wizard_start_desc": "Hangi tuşun hangi sıraya denk geldiğini bulmak için klavyenizdeki tuşlar sırayla kırmızı yanacaktır. Yanan tuşa klavyeden basarak eşleştirin.",
@@ -231,6 +233,8 @@ TRANSLATIONS = {
         # Settings page
         "appearance": "APPEARANCE", "theme": "Theme", "lang_label": "Language",
         "dark": "Dark", "light": "Light", "system": "System Default",
+        "thermal_protection": "Thermal Protection",
+        "thermal_protection_desc": "Enable or disable the emergency max-fan protection mode.",
         "updates": "UPDATES", "current_ver": "Current version",
         "per_key_wizard": "Per-Key RGB Mapping Wizard",
         "wizard_start_desc": "To find out which key corresponds to which index, the keys on your keyboard will light up red one by one. Press the illuminated key on your keyboard to map it.",
