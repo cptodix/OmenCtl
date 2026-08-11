@@ -47,8 +47,10 @@ class SettingsPage(Gtk.Box):
         self.on_lang_change = on_lang_change
         self.on_temp_unit_change = on_temp_unit_change
         self.service = service
+        self.fan_service = None
         self._mux_backends = []
         self._updating_mux_dd = False
+        self._updating_thermal_protection_switch = False
 
         self._css_provider = Gtk.CssProvider()
         Gtk.StyleContext.add_provider_for_display(
@@ -457,6 +459,17 @@ class SettingsPage(Gtk.Box):
         autostart_lbl = T("autostart") if "autostart" in globals() else "Autostart on login"
         appear_card.append(self._make_settings_row(
             "🚀", autostart_lbl, self.autostart_switch, bg_class="icon-bg-sys"))
+
+        appear_card.append(self._make_sep())
+
+        self.thermal_protection_switch = Gtk.Switch()
+        self.thermal_protection_switch.set_valign(Gtk.Align.CENTER)
+        self.thermal_protection_switch.set_sensitive(False)
+        self.thermal_protection_switch.set_active(True)
+        self.thermal_protection_switch.connect("state-set", self._on_thermal_protection_toggle)
+        appear_card.append(self._make_settings_row(
+            "🛡️", T("thermal_protection"), self.thermal_protection_switch,
+            sublabel=T("thermal_protection_desc"), bg_class="icon-bg-sys"))
 
         content.append(appear_card)
 
@@ -973,6 +986,10 @@ class SettingsPage(Gtk.Box):
         self.service = service
         GLib.idle_add(self._refresh_mux_backend)
 
+    def set_fan_service(self, service):
+        self.fan_service = service
+        GLib.idle_add(self._refresh_thermal_protection)
+
     def _refresh_mux_backend(self):
         if not self.service:
             self.mux_status.set_label(T("mux_not_found"))
@@ -1034,6 +1051,34 @@ class SettingsPage(Gtk.Box):
             GLib.timeout_add(300, self._refresh_mux_backend)
         except Exception as e:
             self.mux_status.set_label(f"{T('error')}: {e}")
+
+    def _refresh_thermal_protection(self):
+        if not hasattr(self, "thermal_protection_switch"):
+            return False
+        if not self.fan_service:
+            self.thermal_protection_switch.set_sensitive(False)
+            return False
+        try:
+            enabled = bool(self.fan_service.GetThermalProtectionEnabled())
+            self._updating_thermal_protection_switch = True
+            self.thermal_protection_switch.set_active(enabled)
+            self._updating_thermal_protection_switch = False
+            self.thermal_protection_switch.set_sensitive(True)
+        except Exception:
+            self._updating_thermal_protection_switch = False
+            self.thermal_protection_switch.set_sensitive(False)
+        return False
+
+    def _on_thermal_protection_toggle(self, switch, state):
+        if self._updating_thermal_protection_switch:
+            return False
+        if not self.fan_service:
+            return True
+        try:
+            res = self.fan_service.SetThermalProtectionEnabled(bool(state))
+            return False if res == "OK" else True
+        except Exception:
+            return True
 
     # ── Update Checker ────────────────────────────────────────────────────────
 

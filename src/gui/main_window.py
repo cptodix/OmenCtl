@@ -3100,6 +3100,7 @@ class HPManagerWindow(Gtk.ApplicationWindow):
             self.mux_page.set_service(svcs.get("mux"))
         if hasattr(self, "settings_page") and self.settings_page is not None:
             self.settings_page.set_service(svcs.get("mux"))
+            self.settings_page.set_fan_service(svcs.get("fan"))
         self._refresh_launcher_metrics()
 
     def _schedule_daemon_retry(self):
@@ -3617,6 +3618,7 @@ class HPManagerWindow(Gtk.ApplicationWindow):
                 self.app_profiles_page.set_power_service(services.get("power"))
                 self.mux_page.set_service(services.get("mux"))
                 self.settings_page.set_service(services.get("mux"))
+                self.settings_page.set_fan_service(services.get("fan"))
 
             self.fan_page.set_dark(self.app_theme == "dark")
             self.fan_page.set_temp_unit(self.temp_unit)
