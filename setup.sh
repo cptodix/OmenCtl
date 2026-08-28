@@ -283,8 +283,18 @@ install_dependencies() {
         apt)
             $INSTALL_CMD python3 python3-gi python3-gi-cairo gir1.2-gtk-4.0 gir1.2-adw-1 python3-pydbus python3-cairo python3-pystray python3-pil python3-evdev acpica-tools cmake gcc g++ make libpci-dev
             ;;
-        dnf|zypper)
-            $INSTALL_CMD python3 python3-gobject gtk4 libadwaita python3-pydbus python3-cairo python3-pystray python3-pillow python3-evdev acpica-tools cmake gcc gcc-c++ make pciutils-devel
+        dnf)
+            $INSTALL_CMD python3 python3-gobject gtk4 libadwaita python3-pydbus python3-cairo python3-pystray python3-pillow python3-evdev acpica cmake gcc gcc-c++ make pciutils-devel
+            ;;
+        zypper)
+            # openSUSE requires python313-Pillow and acpica
+            $INSTALL_CMD python3 python3-gobject gtk4 libadwaita python3-pydbus python3-cairo python313-pillow python3-evdev acpica cmake gcc gcc-c++ make pciutils-devel || true
+            
+            # Fallback to pip for pystray since it isn't in openSUSE repos
+            if ! python3 -c "import pystray" &>/dev/null; then
+                info "Installing pystray via pip..."
+                pip install --user --break-system-packages pystray 2>/dev/null || pip install --user pystray 2>/dev/null || true
+            fi
             ;;
     esac
 
