@@ -92,12 +92,23 @@ fn build_ui(app: &adw::Application) {
     apply_startup_profile();
     apply_appearance_mode();
 
+    if let Some(window) = app.active_window() {
+        window.present();
+        return;
+    }
+
     let window = adw::ApplicationWindow::builder()
         .application(app)
         .title(i18n::t("app_title"))
         .default_width(1150)
         .default_height(820)
         .build();
+
+    // Close button hides the window instead of killing the process (Minimize to Tray)
+    window.connect_close_request(move |win| {
+        win.set_visible(false);
+        gtk::glib::Propagation::Stop
+    });
 
     render_ui(&window, "performance");
     window.present();
@@ -346,9 +357,8 @@ fn render_ui(window: &adw::ApplicationWindow, initial_page: &str) {
         .valign(gtk::Align::Center)
         .spacing(8)
         .build();
-    let icon_path = crate::asset_resolver::get_asset_path("icon.png");
-    window.set_icon_name(Some(&icon_path));
-    header_logo_box.append(&gtk::Image::builder().file(icon_path).pixel_size(24).build());
+    window.set_icon_name(Some("omenspace"));
+    header_logo_box.append(&gtk::Image::builder().icon_name("omenspace").pixel_size(24).build());
     header_logo_box.append(&gtk::Label::builder().label(i18n::t("app_title")).css_classes(["title"]).build());
 
     let sidebar_header = adw::HeaderBar::builder().title_widget(&header_logo_box).build();

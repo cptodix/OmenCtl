@@ -29,7 +29,7 @@ impl ksni::Tray for Tray {
     }
     
     fn title(&self) -> String {
-        "OMENSpace".into()
+        "OMEN SPACE".into()
     }
 
     fn activate(&mut self, _x: i32, _y: i32) {

@@ -162,6 +162,68 @@ fn build_interactive_keyboard(
     }
     let key_colors = Rc::new(RefCell::new(HashMap::<String, String>::new()));
     
+    // -- Global Color Button --
+    let global_color_box = gtk::Box::builder().orientation(gtk::Orientation::Horizontal).spacing(12).margin_top(8).margin_bottom(12).halign(gtk::Align::Center).build();
+    let global_color_label = gtk::Label::builder().label(i18n::t("kb_global_color")).css_classes(["dim-label"]).build();
+    if global_color_label.label().is_empty() || global_color_label.label() == "kb_global_color" {
+        global_color_label.set_label("Tüm Klavyenin Rengi (Global Color):");
+    }
+    let global_color_btn = gtk::Button::builder().width_request(40).height_request(24).build();
+    global_color_btn.add_css_class("circular");
+    global_color_btn.set_widget_name("global_color_btn");
+    global_color_box.append(&global_color_label);
+    global_color_box.append(&global_color_btn);
+    kb_card.prepend(&global_color_box);
+    
+    let b_map_global = buttons_map.clone();
+    let dyn_prov_global = dyn_provider.clone();
+    let kc_global = key_colors.clone();
+    let zc_global = zone_colors.clone();
+    let pk_global = per_key_colors.clone();
+    
+    global_color_btn.connect_clicked(move |btn_ref| {
+        let b_map_local = b_map_global.clone();
+        let kc_local = kc_global.clone();
+        let dyn_local = dyn_prov_global.clone();
+        let zc_local = zc_global.clone();
+        let pk_local = pk_global.clone();
+        let current_mode = crate::keyboardrgb::get_active_keyboard_mode(detected_mode);
+        
+        show_color_picker_popover(btn_ref, Rc::new(move |hex| {
+            let mut css_str = String::new();
+            css_str.push_str(&format!("#global_color_btn {{ background: {}; background-image: none; border: 1px solid rgba(255,255,255,0.4); }}\n", hex));
+
+            match current_mode {
+                KeyboardMode::Victus1Zone => {
+                    zc_local.borrow_mut()[0] = hex.clone();
+                    for (k, _) in b_map_local.borrow().iter() { kc_local.borrow_mut().insert(k.clone(), hex.clone()); }
+                    crate::daemon_client::set_color_sync(8, hex.clone());
+                }
+                KeyboardMode::Omen4Zone => {
+                    for i in 0..4 {
+                        if i < zc_local.borrow().len() { zc_local.borrow_mut()[i] = hex.clone(); }
+                        crate::daemon_client::set_color_sync(i as i32, hex.clone());
+                    }
+                    for (k, _) in b_map_local.borrow().iter() { kc_local.borrow_mut().insert(k.clone(), hex.clone()); }
+                }
+                KeyboardMode::PerKey => {
+                    for i in 0..pk_local.borrow().len() { pk_local.borrow_mut()[i] = hex.clone(); }
+                    for (k, _) in b_map_local.borrow().iter() { kc_local.borrow_mut().insert(k.clone(), hex.clone()); }
+                    crate::daemon_client::set_per_key_colors_sync(pk_local.borrow().clone());
+                }
+            }
+            
+            for (k, c) in kc_local.borrow().iter() {
+                if let Some(target_btn) = b_map_local.borrow().get(k) {
+                    let wname = target_btn.widget_name();
+                    css_str.push_str(&format!("#{} {{ background: {}; background-image: none; }}\n", wname.as_str(), c));
+                }
+            }
+            dyn_local.load_from_string(&css_str);
+        }));
+    });
+    // ------------------------
+    
     for (name, btn) in buttons_map.borrow().iter() {
         let b_map_inner = b_map_clone.clone();
         let name_inner = name.clone();

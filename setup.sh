@@ -144,12 +144,14 @@ do_install() {
     cp data/sysusers.d/omen-space.conf /usr/lib/sysusers.d/
     cp data/99-omen-space.rules /usr/lib/udev/rules.d/
     cp data/omen-space.desktop /usr/share/applications/
-    cp src/omen-gui/assets/omenspace.png /usr/share/pixmaps/omenspace.png
+    mkdir -p /usr/share/icons/hicolor/512x512/apps
+    cp src/omen-gui/assets/omenspace.png /usr/share/icons/hicolor/512x512/apps/omenspace.png
+    gtk-update-icon-cache -f -t /usr/share/icons/hicolor || true
     cp -r src/omen-gui/assets/* /usr/share/omen-space/assets/
 
     cat <<EOF > /etc/xdg/autostart/omenspace-tray.desktop
 [Desktop Entry]
-Name=OMENSpace Tray
+Name=OMEN SPACE Tray
 Comment=OMENSpace System Tray Icon
 Exec=/usr/bin/omen-tray
 Icon=omenspace
@@ -219,6 +221,8 @@ do_uninstall() {
     rm -rf /usr/share/omen-space
     rm -f /usr/share/applications/omen-space.desktop
     rm -f /usr/share/pixmaps/omenspace.png
+    rm -f /usr/share/icons/hicolor/512x512/apps/omenspace.png
+    gtk-update-icon-cache -f -t /usr/share/icons/hicolor || true
     rm -f /etc/xdg/autostart/omenspace-tray.desktop
 
     systemctl daemon-reload
