@@ -203,7 +203,7 @@ do_install() {
 
     if $FORCE_CUSTOM_HPWMI; then
         case "$BOARD_NAME" in
-            8D41|8D42|8BCD) warn "Board ${BOARD_NAME:-unknown} detected — forcing custom hp-wmi install path on kernel $(uname -r)." ;;
+            8D41|8D42|8D87|8BCD) warn "Board ${BOARD_NAME:-unknown} detected — forcing custom hp-wmi install path on kernel $(uname -r)." ;;
             *) warn "Forcing custom hp-wmi install path on kernel $(uname -r)." ;;
         esac
     fi
