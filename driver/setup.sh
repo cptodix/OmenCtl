@@ -321,11 +321,15 @@ DKMSRGB
 
     # After DKMS install succeeds, archive stock hp-wmi so the DKMS module wins consistently.
     if ! $STOCK_FAN_SUPPORT && [[ -n "$ORIG_WMI" ]] && [[ -f "$ORIG_WMI" ]]; then
-        if [[ ! -f "${ORIG_WMI}.backup" ]]; then
-            info "Backing up stock driver: $ORIG_WMI"
-            mv "$ORIG_WMI" "${ORIG_WMI}.backup"
+        if [[ "$ORIG_WMI" != *"extra/"* ]] && [[ "$ORIG_WMI" != *"updates/"* ]]; then
+            if [[ ! -f "${ORIG_WMI}.backup" ]]; then
+                info "Backing up stock driver: $ORIG_WMI"
+                mv "$ORIG_WMI" "${ORIG_WMI}.backup"
+            else
+                info "Stock backup already exists: ${ORIG_WMI}.backup"
+            fi
         else
-            info "Stock backup already exists: ${ORIG_WMI}.backup"
+            info "Skipping stock backup: ORIG_WMI is already a DKMS module ($ORIG_WMI)"
         fi
     fi
 
