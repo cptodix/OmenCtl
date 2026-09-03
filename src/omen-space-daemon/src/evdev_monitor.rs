@@ -2,6 +2,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use evdev::{Device, Key};
 use futures::StreamExt;
+use std::sync::atomic::{AtomicBool, Ordering};
 use log::info;
 
 #[derive(Clone, Debug)]
@@ -15,21 +16,35 @@ pub struct KeyEventInfo {
 
 pub struct EvdevMonitor {
     pub recent_keys: Arc<Mutex<Vec<KeyEventInfo>>>,
+    pub active: Arc<AtomicBool>,
 }
 
 impl EvdevMonitor {
     pub fn new() -> Self {
         let recent_keys = Arc::new(Mutex::new(Vec::new()));
+        let active = Arc::new(AtomicBool::new(false));
         
         let keys_clone = recent_keys.clone();
+        let active_clone = active.clone();
         tokio::spawn(async move {
-            Self::monitor_loop(keys_clone).await;
+            Self::monitor_loop(keys_clone, active_clone).await;
         });
 
-        Self { recent_keys }
+        Self { recent_keys, active }
     }
 
-    async fn monitor_loop(keys: Arc<Mutex<Vec<KeyEventInfo>>>) {
+    pub fn set_active(&self, enabled: bool) {
+        let prev = self.active.swap(enabled, Ordering::Relaxed);
+        if prev && !enabled {
+            let keys = self.recent_keys.clone();
+            tokio::spawn(async move {
+                let mut lock = keys.lock().await;
+                lock.clear();
+            });
+        }
+    }
+
+    async fn monitor_loop(keys: Arc<Mutex<Vec<KeyEventInfo>>>, active: Arc<AtomicBool>) {
         loop {
             let mut streams = Vec::new();
 
@@ -60,6 +75,9 @@ impl EvdevMonitor {
             let mut select_all = futures::stream::select_all(streams);
 
             while let Some(Ok(event)) = select_all.next().await {
+                if !active.load(Ordering::Relaxed) {
+                    continue;
+                }
                 if let evdev::InputEventKind::Key(key) = event.kind() {
                     if event.value() == 1 {
                         let (x, y) = Self::map_keycode(key.code());

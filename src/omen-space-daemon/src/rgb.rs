@@ -445,12 +445,12 @@ impl RgbService {
     async fn uleds_monitor_loop(inner: Arc<Mutex<RgbInner>>) {
         #[repr(C)]
         struct UledsUserDev {
-            name: [u8; 50],
+            name: [u8; 64],
             max_brightness: std::ffi::c_int,
         }
 
         let mut dev = UledsUserDev {
-            name: [0; 50],
+            name: [0; 64],
             max_brightness: 100,
         };
         let name_str = b"omen::kbd_backlight";
@@ -489,16 +489,23 @@ impl RgbService {
             match async_file.read_exact(&mut val_bytes).await {
                 Ok(_) => {
                     let new_brightness = i32::from_ne_bytes(val_bytes);
-                    let mut g = inner.lock().await;
-                    let clamped = new_brightness.clamp(0, 100) as u32;
-                    if g.config.brightness != clamped || (clamped > 0 && !g.config.power) {
-                        g.config.brightness = clamped;
-                        if clamped > 0 {
-                            g.config.power = true;
-                        } else {
-                            g.config.power = false; // Usually 0 means off
+                    let mut should_apply = false;
+                    {
+                        let mut g = inner.lock().await;
+                        let clamped = new_brightness.clamp(0, 100) as u32;
+                        if g.config.brightness != clamped || (clamped > 0 && !g.config.power) {
+                            g.config.brightness = clamped;
+                            if clamped > 0 {
+                                g.config.power = true;
+                            } else {
+                                g.config.power = false; // Usually 0 means off
+                            }
+                            g.config.save();
+                            should_apply = true;
                         }
-                        g.config.save();
+                    }
+                    if should_apply {
+                        Self::apply_state(inner.clone()).await;
                     }
                 }
                 Err(e) => {
@@ -518,6 +525,10 @@ impl RgbService {
             let mut g = inner.lock().await;
             let has_per_key = g.hid_per_key.is_available();
             let has_old_sysfs = g.hw.available && !g.hw.is_new_driver;
+
+            // Only activate evdev key monitoring when interactive effects (reactive, ripple) are chosen
+            let is_interactive = g.config.power && has_per_key && (g.config.mode == "reactive" || g.config.mode == "ripple");
+            g.evdev_monitor.set_active(is_interactive);
 
             if !has_per_key && !has_old_sysfs {
                 continue;

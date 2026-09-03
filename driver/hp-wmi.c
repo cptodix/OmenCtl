@@ -520,10 +520,10 @@ static enum platform_profile_option active_platform_profile;
 static bool platform_profile_support;
 static bool zero_insize_support;
 
-static bool force_fan_control_support;
+static bool force_fan_control_support = true;
 module_param(force_fan_control_support, bool, 0444);
 MODULE_PARM_DESC(force_fan_control_support,
-		 "Force support for manual fan control features (default: false)");
+		 "Force support for manual fan control features (default: true)");
 
 static struct rfkill *wifi_rfkill;
 static struct rfkill *bluetooth_rfkill;
@@ -2128,7 +2128,7 @@ static int platform_profile_victus_set_ec(enum platform_profile_option profile)
 static bool is_victus_s_thermal_profile(void)
 {
 	/* is_victus_s_board is initialised in driver init before this is called */
-	return is_victus_s_board || force_fan_control_support;
+	return is_victus_s_board;
 }
 
 static int victus_s_gpu_thermal_profile_get(bool *ctgp_enable,

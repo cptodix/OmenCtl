@@ -70,32 +70,42 @@ impl AutoUpdateService {
             0,
         ).await;
 
-        let download_target = "/tmp/omen-space-update.tar.gz";
-        let extract_dir = "/tmp/omen-space-update-extracted";
+        let update_dir = "/var/lib/omen-space/updates";
+        let _ = tokio::fs::create_dir_all(update_dir).await;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let _ = tokio::fs::set_permissions(update_dir, std::fs::Permissions::from_mode(0o700)).await;
+        }
+
+        let download_target = format!("{}/omen-space-update.tar.gz", update_dir);
+        let extract_dir = format!("{}/extracted", update_dir);
 
         // Security Check: Validate download URL scheme & host
         if !info.download_url.starts_with("https://github.com/yunusemreyl/omen-space/") {
             warn!("Blocked unsafe download URL: {}", info.download_url);
+            let _ = tokio::fs::remove_dir_all(update_dir).await;
             return serde_json::json!({
                 "success": false,
                 "message": "Blocked update: Invalid or untrusted download URL host."
             }).to_string();
         }
 
-        let _ = tokio::fs::remove_dir_all(extract_dir).await;
-        let _ = tokio::fs::create_dir_all(extract_dir).await;
+        let _ = tokio::fs::remove_dir_all(&extract_dir).await;
+        let _ = tokio::fs::create_dir_all(&extract_dir).await;
 
         // Safe direct execution of curl with TLS 1.2+ enforcement (No shell invocation)
         let dl_status = tokio::process::Command::new("curl")
-            .args(["--proto", "=https", "--tlsv1.2", "-sSL", "--max-redirs", "5", "-o", download_target, &info.download_url])
+            .args(["--proto", "=https", "--tlsv1.2", "-sSL", "--max-redirs", "5", "-o", &download_target, &info.download_url])
             .output()
             .await;
 
-        let target_metadata = tokio::fs::metadata(download_target).await;
+        let target_metadata = tokio::fs::metadata(&download_target).await;
         let file_valid = target_metadata.map(|m| m.len() > 1024).unwrap_or(false);
 
         if dl_status.is_err() || !file_valid {
             warn!("Failed or invalid update download asset from {}", info.download_url);
+            let _ = tokio::fs::remove_dir_all(update_dir).await;
             return serde_json::json!({
                 "success": false,
                 "message": format!("Failed to securely download release asset from {}", info.download_url)
@@ -104,12 +114,13 @@ impl AutoUpdateService {
 
         // Extract package safely
         let extract_cmd = tokio::process::Command::new("tar")
-            .args(["-xzf", download_target, "-C", extract_dir])
+            .args(["-xzf", &download_target, "-C", &extract_dir])
             .output()
             .await;
 
         if extract_cmd.is_err() || !extract_cmd.as_ref().map(|o| o.status.success()).unwrap_or(false) {
             warn!("Failed to extract update package {}", download_target);
+            let _ = tokio::fs::remove_dir_all(update_dir).await;
             return serde_json::json!({
                 "success": false,
                 "message": "Failed to unpack release archive."
@@ -138,6 +149,8 @@ impl AutoUpdateService {
                                 &format!("Omen Space has been successfully updated to {}!", info.latest_version),
                                 0,
                             ).await;
+
+                            let _ = tokio::fs::remove_dir_all(update_dir).await;
 
                             return serde_json::json!({
                                 "success": true,
