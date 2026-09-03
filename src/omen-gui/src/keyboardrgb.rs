@@ -634,6 +634,11 @@ pub fn build_page() -> adw::PreferencesPage {
     let bright_row = adw::ActionRow::builder().title(i18n::t("kb_brightness")).build();
     let bright_scale = gtk::Scale::with_range(gtk::Orientation::Horizontal, 0.0, 100.0, 1.0);
     bright_scale.set_value(100.0);
+    if let Some(state_json) = &state_json_opt {
+        if let Some(brightness) = state_json["brightness"].as_f64() {
+            bright_scale.set_value(brightness);
+        }
+    }
     bright_scale.set_draw_value(true);
     bright_scale.set_hexpand(false);
     bright_scale.set_size_request(250, -1);
@@ -642,6 +647,13 @@ pub fn build_page() -> adw::PreferencesPage {
     bright_scale.set_valign(gtk::Align::Center);
     bright_row.add_suffix(&bright_scale);
     std_group.add(&bright_row);
+    
+    bright_scale.connect_value_changed(move |scale| {
+        let val = scale.value() as i32;
+        let pwr = val > 0;
+        crate::daemon_client::set_global_sync(pwr, val, "ltr");
+    });
+
 
     page.add(&std_group);
 
@@ -734,6 +746,13 @@ pub fn build_page() -> adw::PreferencesPage {
         lb_bright_scale.set_valign(gtk::Align::Center);
         lb_bright_row.add_suffix(&lb_bright_scale);
         lb_group.add(&lb_bright_row);
+        
+        lb_bright_scale.connect_value_changed(move |scale| {
+            // Note: the backend currently uses set_global for all brightness. 
+            // In the future, this can be separated if hardware supports it.
+            let val = scale.value() as i32;
+            crate::daemon_client::set_global_sync(val > 0, val, "ltr");
+        });
 
         page.add(&lb_group);
 
