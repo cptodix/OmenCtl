@@ -277,6 +277,7 @@ fn get_all_models() -> &'static [ModelCapabilities] {
         
         // OMEN 16 Series
         model!("8A43", "OMEN by HP Gaming Laptop 16-n0xxx", 2022, "OMEN", { has_mux_switch: true, supports_fan_control_ec: false }),
+        model!("8BAA", "OMEN by HP Gaming Laptop 16-wf0xxx", 2023, "OMEN", { has_mux_switch: true, supports_gpu_power_boost: true, supports_fan_control_ec: false }),
         model!("8BAB", "OMEN by HP Gaming Laptop 16-wf0xxx", 2023, "OMEN", { has_mux_switch: true, supports_gpu_power_boost: true, supports_fan_control_ec: false }),
         model!("8BAD", "OMEN 16 (2023) Intel", 2023, "OMEN", { has_mux_switch: true, supports_fan_control_ec: false }),
         model!("8CD1", "OMEN 16 (2023) AMD", 2023, "OMEN", { has_mux_switch: true, supports_fan_control_ec: false }),
@@ -287,6 +288,7 @@ fn get_all_models() -> &'static [ModelCapabilities] {
         model!("8E35", "OMEN MAX 16t-ah000", 2025, "OMEN", { has_mux_switch: true, supports_fan_control_ec: true, has_per_key_rgb: true }),
         model!("8E41", "OMEN MAX 16-ah0xxx", 2025, "OMEN", { has_mux_switch: true, supports_fan_control_ec: false, has_per_key_rgb: true }),
         model!("8D88", "OMEN MAX Gaming Laptop 16-ak0xxx", 2025, "OMEN", { has_mux_switch: true, supports_fan_control_ec: false, supports_fan_control_wmi: true, has_per_key_rgb: true }),
+        model!("8D87", "OMEN MAX Gaming Laptop 16-ak0xxx", 2025, "OMEN", { has_mux_switch: true, supports_fan_control_ec: false, supports_fan_control_wmi: true, has_per_key_rgb: true, notes: "Ryzen AI 9 HX 375 / RTX 5080. RTX 5080 sibling of 8D88. Requires patched hp-wmi for gpu_tgp/gpu_ppab.".to_string() }),
         model!("8C77", "OMEN by HP Gaming Laptop 16-wf1xxx", 2024, "OMEN", { has_mux_switch: true, supports_fan_control_ec: false }),
         model!("8C78", "OMEN by HP Gaming Laptop 16-wf1xxx", 2024, "OMEN", { has_mux_switch: true, supports_fan_control_ec: false }),
         // Issue #169: 8D41 had no entry — zones are inverted, per-key is present via HID
@@ -303,6 +305,7 @@ fn get_all_models() -> &'static [ModelCapabilities] {
         // Victus Series
         model!("88EC", "Victus by HP 16-e0xxx", 2021, "Victus", { has_mux_switch: false, supports_fan_control_ec: true }),
         model!("8934", "Victus by HP 16-e0xxx", 2021, "Victus", { has_mux_switch: false, supports_fan_control_ec: true }),
+        model!("8912", "OMEN by HP Laptop 16-c0xxx", 2021, "OMEN", { has_mux_switch: true, supports_fan_control_ec: false }),
         model!("8A25", "Victus by HP 15-fb0xxx", 2022, "Victus", { has_mux_switch: false, supports_fan_control_ec: true }),
         model!("8A97", "Victus by HP 16-d1xxx", 2022, "Victus", { has_mux_switch: false, supports_fan_control_ec: true }),
         model!("8B19", "Victus by HP 16-r0xxx", 2023, "Victus", { has_mux_switch: true, supports_fan_control_ec: false }),
