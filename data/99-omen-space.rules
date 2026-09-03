@@ -1,0 +1,12 @@
+# Assign hwmon and platform profile sysfs nodes to the omen-hw group for unprivileged fan control
+
+# WMI and ACPI based devices
+ACTION=="add|change", SUBSYSTEM=="platform", KERNEL=="hp-wmi|hp-omen", RUN+="/bin/chgrp omen-hw /sys/devices/platform/%k/thermal_profile /sys/devices/platform/%k/platform_profile", RUN+="/bin/chmod 0664 /sys/devices/platform/%k/thermal_profile /sys/devices/platform/%k/platform_profile"
+
+ACTION=="add|change", SUBSYSTEM=="platform", KERNEL=="*-acpi-*", RUN+="/bin/chgrp omen-hw /sys/firmware/acpi/platform_profile", RUN+="/bin/chmod 0664 /sys/firmware/acpi/platform_profile"
+
+# Hwmon devices
+ACTION=="add|change", SUBSYSTEM=="hwmon", RUN+="/bin/sh -c 'chgrp omen-hw /sys/class/hwmon/%k/pwm1* /sys/class/hwmon/%k/fan*_target 2>/dev/null || true'", RUN+="/bin/sh -c 'chmod 0664 /sys/class/hwmon/%k/pwm1* /sys/class/hwmon/%k/fan*_target 2>/dev/null || true'"
+
+# Extra Omen features (RGB, MUX, etc)
+ACTION=="add|change", SUBSYSTEM=="platform", KERNEL=="hp-omen-extra", RUN+="/bin/sh -c 'chgrp -R omen-hw /sys/devices/platform/hp-omen-extra/* 2>/dev/null || true'", RUN+="/bin/sh -c 'chmod -R g+rw /sys/devices/platform/hp-omen-extra/* 2>/dev/null || true'"

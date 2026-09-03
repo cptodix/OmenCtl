@@ -13,13 +13,13 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-MODNAME="hp-rgb-lighting"
+MODNAME="hp-omen-extra"
 MODVER=$(grep -oP 'PACKAGE_VERSION="\K[^"]+' dkms.conf 2>/dev/null || echo "1.3.5")
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # MOK_DIR — initialised here so it is always defined (avoids unbound variable
 # errors in the MOK_PENDING check when Secure Boot is disabled)
-MOK_DIR="/var/lib/hp-manager/mok"
+MOK_DIR="/var/lib/omen-space/mok"
 
 # ── Kernel version detection ──────────────────────────────────────────────────
 # Kernel 7.0+ has Omen/Victus fan control in the stock hp-wmi module.
@@ -229,10 +229,10 @@ do_install() {
     # Purge stale .ko files from previous installs that may reference
     # removed symbols (e.g. hp_wmi_mutex).  Without this, modprobe may
     # find and load the old .ko instead of the freshly built one.
-    info "Purging stale hp-rgb-lighting module files..."
+    info "Purging stale hp-omen-extra module files..."
     KVER=$(uname -r)
     find /lib/modules/"$KVER" /usr/lib/modules/"$KVER" \
-        -name 'hp-rgb-lighting.ko*' -delete 2>/dev/null || true
+        -name 'hp-omen-extra.ko*' -delete 2>/dev/null || true
     depmod -a 2>/dev/null || true
 
     # Tüm eski/artık DKMS girdilerini temizle
@@ -246,23 +246,23 @@ do_install() {
 
     if $STOCK_FAN_SUPPORT; then
         info "Kernel $(uname -r) detected (>= 7.0) — stock hp-wmi already has Omen fan control."
-        info "Only building hp-rgb-lighting (RGB keyboard control)..."
+        info "Only building hp-omen-extra (RGB keyboard control)..."
 
-        # RGB-only DKMS config — pass RGB_ONLY=1 so Makefile only builds hp-rgb-lighting
+        # RGB-only DKMS config — pass RGB_ONLY=1 so Makefile only builds hp-omen-extra
         cat > "/usr/src/${MODNAME}-${MODVER}/dkms.conf" <<DKMSRGB
-PACKAGE_NAME="hp-rgb-lighting"
+PACKAGE_NAME="hp-omen-extra"
 PACKAGE_VERSION="$MODVER"
 MAKE[0]="grep -iq clang /proc/version && make LLVM=1 RGB_ONLY=1 -C \$kernel_source_dir M=\$dkms_tree/\$module/\$module_version/build EXTRA_CFLAGS='' modules || make RGB_ONLY=1 -C \$kernel_source_dir M=\$dkms_tree/\$module/\$module_version/build EXTRA_CFLAGS='' modules"
 CLEAN=true
-BUILT_MODULE_NAME[0]="hp-rgb-lighting"
+BUILT_MODULE_NAME[0]="hp-omen-extra"
 DEST_MODULE_LOCATION[0]="/kernel/drivers/platform/x86/hp"
 AUTOINSTALL="yes"
 DKMSRGB
     else
         if [ "$KVER_MAJOR" -gt 7 ] || { [ "$KVER_MAJOR" -eq 7 ] && [ "$KVER_MINOR" -ge 0 ]; }; then
-            info "Kernel $(uname -r) detected (>= 7.0) but custom hp-wmi is forced — installing both hp-wmi and hp-rgb-lighting..."
+            info "Kernel $(uname -r) detected (>= 7.0) but custom hp-wmi is forced — installing both hp-wmi and hp-omen-extra..."
         else
-            info "Kernel $(uname -r) detected (< 7.0) — installing both hp-wmi and hp-rgb-lighting..."
+            info "Kernel $(uname -r) detected (< 7.0) — installing both hp-wmi and hp-omen-extra..."
         fi
 
         info "Checking for stock hp-wmi driver path..."
@@ -296,13 +296,13 @@ DKMSRGB
     info "Verifying DKMS module installation..."
     _dkms_verify_ok=true
 
-    if ! modinfo hp-rgb-lighting &>/dev/null; then
-        warn "hp-rgb-lighting not found by modinfo after DKMS install — retrying with --force..."
+    if ! modinfo hp-omen-extra &>/dev/null; then
+        warn "hp-omen-extra not found by modinfo after DKMS install — retrying with --force..."
         dkms install -m "$MODNAME" -v "$MODVER" -k "$(uname -r)" --force 2>/dev/null || true
         depmod -a
-        if ! modinfo hp-rgb-lighting &>/dev/null; then
+        if ! modinfo hp-omen-extra &>/dev/null; then
             _dkms_verify_ok=false
-            warn "hp-rgb-lighting STILL not found after forced reinstall."
+            warn "hp-omen-extra STILL not found after forced reinstall."
             warn "Try manually: sudo dkms install $MODNAME/$MODVER -k $(uname -r) --force"
         fi
     fi
@@ -316,7 +316,7 @@ DKMSRGB
     fi
 
     if $_dkms_verify_ok; then
-        ok "DKMS module verified: $(modinfo -n hp-rgb-lighting 2>/dev/null || echo 'path unknown')"
+        ok "DKMS module verified: $(modinfo -n hp-omen-extra 2>/dev/null || echo 'path unknown')"
     fi
 
     # After DKMS install succeeds, archive stock hp-wmi so the DKMS module wins consistently.
@@ -346,7 +346,7 @@ DKMSRGB
             openssl req -new -x509 -newkey rsa:2048 \
                 -keyout "$MOK_DIR/MOK.priv" \
                 -outform DER -out "$MOK_DIR/MOK.der" \
-                -days 36500 -subj "/CN=hp-manager-mok/" -nodes 2>/dev/null
+                -days 36500 -subj "/CN=omen-space-mok/" -nodes 2>/dev/null
             chmod 600 "$MOK_DIR/MOK.priv"
         fi
 
@@ -363,7 +363,7 @@ DKMSRGB
             -name "sign-file" -type f 2>/dev/null | head -n 1)
 
         if [ -n "$SIGN_SCRIPT" ]; then
-            for MOD_NAME in "hp-rgb-lighting.ko" "hp-wmi.ko"; do
+            for MOD_NAME in "hp-omen-extra.ko" "hp-wmi.ko"; do
                 if [ "$MOD_NAME" = "hp-wmi.ko" ] && $STOCK_FAN_SUPPORT; then
                     continue
                 fi
@@ -420,16 +420,16 @@ DKMSRGB
         info "MOK enrollment pending — skipping module load until reboot."
     elif $STOCK_FAN_SUPPORT; then
         info "Loading modules..."
-        # Unload any stale hp_rgb_lighting first so the freshly built one is loaded
-        modprobe -r hp_rgb_lighting 2>/dev/null || true
+        # Unload any stale hp_omen_extra first so the freshly built one is loaded
+        modprobe -r hp_omen_extra 2>/dev/null || true
         modprobe led_class_multicolor 2>/dev/null || true
         # FIX: use modprobe (not insmod) — searches DKMS-installed paths correctly
-        if modprobe hp_rgb_lighting 2>/dev/null; then
-            ok "hp-rgb-lighting loaded successfully"
+        if modprobe hp_omen_extra 2>/dev/null; then
+            ok "hp-omen-extra loaded successfully"
         else
-            warn "hp-rgb-lighting could not be loaded. (Secure Boot issue?)"
+            warn "hp-omen-extra could not be loaded. (Secure Boot issue?)"
         fi
-        ok "hp-rgb-lighting (RGB) installed. Stock hp-wmi handles fan control."
+        ok "hp-omen-extra (RGB) installed. Stock hp-wmi handles fan control."
     else
         info "Loading modules..."
         # FIX: modprobe -r handles dependency unloading correctly (rmmod does not)
@@ -441,12 +441,12 @@ DKMSRGB
         else
             warn "hp-wmi could not be loaded — check: dmesg | tail -20"
         fi
-        if modprobe hp_rgb_lighting 2>/dev/null; then
-            ok "hp-rgb-lighting loaded successfully"
+        if modprobe hp_omen_extra 2>/dev/null; then
+            ok "hp-omen-extra loaded successfully"
         else
-            warn "hp-rgb-lighting could not be loaded."
+            warn "hp-omen-extra could not be loaded."
         fi
-        ok "Both hp-wmi and hp-rgb-lighting installed."
+        ok "Both hp-wmi and hp-omen-extra installed."
     fi
 
     echo ""
@@ -455,6 +455,11 @@ DKMSRGB
         info "Fan control: /sys/devices/platform/hp-wmi/hwmon/hwmon*/pwm1_enable"
         info "Fan speed:   /sys/devices/platform/hp-wmi/hwmon/hwmon*/fan*_target"
     fi
+    
+    # Create modules-load.d entry so udev/systemd auto-loads it on boot
+    info "Configuring auto-load on boot..."
+    echo "hp_omen_extra" > /etc/modules-load.d/hp-omen-extra.conf
+
     echo ""
 }
 
@@ -465,7 +470,7 @@ do_uninstall() {
 
     info "Unloading modules..."
     # FIX: modprobe -r handles inter-module dependencies; rmmod does not
-    modprobe -r hp_rgb_lighting 2>/dev/null || true
+    modprobe -r hp_omen_extra 2>/dev/null || true
     modprobe -r hp_wmi          2>/dev/null || true
 
     info "Removing DKMS entry..."
@@ -476,6 +481,9 @@ do_uninstall() {
     else
         warn "DKMS entry not found. Nothing to remove."
     fi
+
+    # Remove modules-load.d entry
+    rm -f /etc/modules-load.d/hp-omen-extra.conf
 
     # Restore original driver backups
     info "Restoring original driver backups (if any)..."

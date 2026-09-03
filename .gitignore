@@ -1,4 +1,8 @@
 # GitHub Ignore List
+
+# Rust build artifacts
+target/
+**/.cargo-lock
 bugfix/
 fixes.md
 fixed.md
@@ -39,3 +43,10 @@ news.md
 .vs/slnx.sqlite
 .vs/VSWorkspaceState.json
 documentation/issues.md
+
+# Node & UI artifacts
+node_modules/
+dist/
+out/
+.next/
+src-tauri/target/

@@ -553,7 +553,7 @@ static const char *const tablet_chassis_types[] = {
 
 #define CPU_FAN 0
 #define GPU_FAN 1
-#define VICTUS_S_FALLBACK_MAX_RPM_FW 50
+#define VICTUS_S_FALLBACK_MAX_RPM_FW 60
 #define VICTUS_S_FALLBACK_MAX_RPM    (VICTUS_S_FALLBACK_MAX_RPM_FW * 100)
 
 enum pwm_modes {
@@ -3132,21 +3132,26 @@ static int hp_wmi_setup_fan_settings(struct hp_wmi_hwmon_priv *priv)
 			
 			min_rpm = fan_table->entries[0].cpu_rpm;
 			max_rpm = fan_table->entries[fan_table->header.num_fans - 1].cpu_rpm;
-			gpu_delta = (fan_table->entries[0].gpu_rpm > fan_table->entries[0].cpu_rpm)
-				    ? fan_table->entries[0].gpu_rpm - fan_table->entries[0].cpu_rpm
-				    : 0;
-			
-			priv->min_rpm = min_rpm;
-			priv->max_rpm = max_rpm;
-			priv->gpu_delta = gpu_delta;
-			priv->max_rpms[0] = max_rpm * 100;
-			priv->max_rpms[1] = (max_rpm + gpu_delta) * 100;
-			priv->target_rpms[0] = 0;
-			priv->target_rpms[1] = 0;
-			priv->prev_mode      = -1;
-			priv->fan_speed_available = true;
-			priv->uses_victus_s_fan_commands = true;
-			return 0;
+
+			/* Workaround for buggy WMI firmware on boards like 8BBE which return max_rpm=18 (1800 RPM) */
+			if (max_rpm >= 30) {
+				gpu_delta = (fan_table->entries[0].gpu_rpm > fan_table->entries[0].cpu_rpm)
+					    ? fan_table->entries[0].gpu_rpm - fan_table->entries[0].cpu_rpm
+					    : 0;
+				
+				priv->min_rpm = min_rpm;
+				priv->max_rpm = max_rpm;
+				priv->gpu_delta = gpu_delta;
+				priv->max_rpms[0] = max_rpm * 100;
+				priv->max_rpms[1] = (max_rpm + gpu_delta) * 100;
+				priv->target_rpms[0] = 0;
+				priv->target_rpms[1] = 0;
+				priv->prev_mode      = -1;
+				priv->fan_speed_available = true;
+				priv->uses_victus_s_fan_commands = true;
+				return 0;
+			}
+			pr_warn("Malformed or bogus fan table (max_rpm=%d), falling back to probing\n", max_rpm);
 		}
 		pr_warn("Malformed fan table, falling back to probing\n");
 	}
