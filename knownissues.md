@@ -39,6 +39,15 @@ The following issues have been resolved and tested with the Omen Space 2.0 archi
 - **Root Cause:** The OMEN 17-db0xxx ACPI table contains the same broken `GETB` helper as `8BAC` — a `CreateField` with zero length that causes `AE_AML_BUFFER_LIMIT` and aborts all `WMID` methods. Board `8C75` was not registered in the DMI table, so it fell through without the necessary no-EC workaround.
 - **Status:** ✅ **Resolved.** Added `8C75` to `victus_s_thermal_profile_boards[]` in `driver/hp-wmi.c` with `omen_v1_no_ec_thermal_params` (matching the `8BAC` fix) to bypass EC thermal profile reads and prevent silent fan-write aborts. Also added `8C75` to `capabilities.rs` with `supports_fan_control_ec: false` and flagged it as `is_wmaa_abort_prone_board` so the daemon correctly reports degraded/ProfileOnly control instead of FullControl.
 
+### [8A43] Bug Report — OMEN by HP Gaming Laptop 16-n0xxx #173
+- **Description:** Power profiles return to balanced seconds after changing. DKMS build fails on Manjaro with kernel `6.12.104-1-MANJARO`:  installer attempted to install `linux61-headers` (6.1 LTS) instead of `linux612-headers` for the running kernel, so the custom `hp-wmi` never loaded and the thermal profile fix was never applied.
+- **Root Cause:** The Arch/Manjaro header-detection block in `driver/setup.sh` only handled special suffixes (`-zen`, `-lts`, `-cachyos`, etc.). Vanilla Manjaro kernels (`-MANJARO`) fell through to the generic `linux-headers` meta-package, which resolves to the current LTS kernel's headers — mismatched with the running kernel.
+- **Status:** ✅ **Resolved.** Added versioned-header probing to `driver/setup.sh`: for any unrecognised kernel suffix, the script now derives the Arch/Manjaro versioned package name from the running kernel's major.minor (e.g. `linux612-headers` for `6.12.x`) and verifies it exists in pacman's repos before falling back to the generic package. A clear warning is printed if the versioned package isn't found.
+
+### Update Command removes system76-power without asking #156
+- **Description:** Running `curl … | sudo bash` to update OmenCtl removed `system76-power` without prompting, because the installer pulled in `power-profiles-daemon` as a dependency which conflicts with `system76-power`.
+- **Status:** ✅ **Resolved.** Added `check_conflicting_power_managers()` to `setup.sh` that runs **before** any package changes. If `system76-power` (or future conflicting tools) is detected, the user is shown a warning explaining the conflict and given the option to abort before the installer touches any packages.
+
 ---
 
 ## Active User Feedback / Open Issues (Omen Space 2.0)

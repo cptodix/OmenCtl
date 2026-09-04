@@ -126,7 +126,23 @@ install_deps() {
             elif [[ $RUNNING_KVER == *"-rt"* ]]; then
                 HEADERS_PKG="linux-rt-headers"
             else
-                HEADERS_PKG="linux-headers"
+                # FIX #173: Manjaro and vanilla Arch kernels use versioned headers packages
+                # (e.g. linux612-headers for 6.12.x-MANJARO, linux61-headers for 6.1.x).
+                # The generic 'linux-headers' meta-package on Manjaro resolves to the LTS
+                # kernel headers, which may differ from the running kernel — causing DKMS
+                # build failures.  Derive the correct package from the running kernel version.
+                local KVER_MAJOR KVER_MINOR VERSIONED_PKG
+                KVER_MAJOR=$(echo "$RUNNING_KVER" | cut -d. -f1)
+                KVER_MINOR=$(echo "$RUNNING_KVER" | cut -d. -f2)
+                VERSIONED_PKG="linux${KVER_MAJOR}${KVER_MINOR}-headers"
+                if pacman -Si "$VERSIONED_PKG" &>/dev/null 2>&1; then
+                    HEADERS_PKG="$VERSIONED_PKG"
+                    info "Detected versioned headers package: $VERSIONED_PKG"
+                else
+                    HEADERS_PKG="linux-headers"
+                    warn "Could not find $VERSIONED_PKG — falling back to linux-headers."
+                    warn "If DKMS fails, manually install headers for kernel $RUNNING_KVER."
+                fi
             fi
 
             info "Attempting to install: dkms $HEADERS_PKG base-devel"
@@ -136,6 +152,7 @@ install_deps() {
                     || warn "Header installation failed. DKMS might not work without headers."
             fi
             ;;
+
         opensuse*|suse*)
             info "Installing dependencies (zypper)..."
             zypper install -y dkms kernel-devel kernel-default-devel gcc make

@@ -28,6 +28,47 @@ install_dependencies() {
     fi
 }
 
+# FIX #156: Check for conflicting power management tools before any package changes.
+# The old OmenCtl installer removed system76-power without warning to satisfy the
+# power-profiles-daemon dependency.  We detect this upfront and ask the user before
+# proceeding so they can make an informed choice.
+check_conflicting_power_managers() {
+    local CONFLICTS=()
+
+    # system76-power conflicts with power-profiles-daemon on Arch/Manjaro
+    if command -v system76-power &>/dev/null || \
+       (command -v pacman &>/dev/null && pacman -Qq system76-power &>/dev/null 2>&1); then
+        CONFLICTS+=("system76-power")
+    fi
+
+    if [ ${#CONFLICTS[@]} -eq 0 ]; then
+        return 0
+    fi
+
+    echo ""
+    echo "⚠️  WARNING: Conflicting power management software detected:"
+    for PKG in "${CONFLICTS[@]}"; do
+        echo "   • $PKG"
+    done
+    echo ""
+    echo "   OMENSpace relies on power-profiles-daemon for thermal profile integration."
+    echo "   Your package manager may automatically remove the above package(s) when"
+    echo "   power-profiles-daemon is installed as a dependency."
+    echo ""
+    echo "   If you want to keep ${CONFLICTS[*]}, cancel now and manage the conflict manually."
+    echo ""
+    read -r -p "   Continue installation anyway? [y/N]: " REPLY
+    case "$REPLY" in
+        [yY][eE][sS]|[yY]) echo "   Proceeding..." ;;
+        *)
+            echo "   Installation aborted. No changes were made."
+            exit 0
+            ;;
+    esac
+    echo ""
+}
+
+
 remove_legacy_omenctl() {
     echo "====================================="
     echo " Cleaning up legacy omenctl / OmenCtl microservices..."
@@ -258,6 +299,7 @@ COMMAND=${1:-install}
 
 case "$COMMAND" in
     install)
+        check_conflicting_power_managers
         install_dependencies
         remove_legacy_omenctl
         do_build
@@ -267,6 +309,7 @@ case "$COMMAND" in
         do_uninstall
         ;;
     update)
+        check_conflicting_power_managers
         install_dependencies
         remove_legacy_omenctl
         do_update
