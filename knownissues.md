@@ -34,6 +34,11 @@ The following issues have been resolved and tested with the Omen Space 2.0 archi
 - **Description:** Fan RPM reading is always 0 even at max. No custom curve option available. Board not in database.
 - **Status:** ✅ **Resolved.** Added the device to the `capabilities.rs` database. The EC access returning 0 issue was permanently fixed via the mandatory fan control patch over hwmon.
 
+### [8C75] Bug Report — OMEN 17-db0xxx fans stuck at 0 RPM after overheat #175
+- **Description:** Both fans silently stuck at 0 RPM after an overheat-induced reboot. `dmesg` showed repeated `ACPI Error: AE_AML_BUFFER_LIMIT` on `_SB.WMID.WMBX` and `_SB.WMID.WMBA`. `pwm1_enable` returned `0` (driver claims manual control), but all WMI fan-speed writes abort at the ACPI layer without error propagation. Fan recovers only at POST because the EC takes over during overheat.
+- **Root Cause:** The OMEN 17-db0xxx ACPI table contains the same broken `GETB` helper as `8BAC` — a `CreateField` with zero length that causes `AE_AML_BUFFER_LIMIT` and aborts all `WMID` methods. Board `8C75` was not registered in the DMI table, so it fell through without the necessary no-EC workaround.
+- **Status:** ✅ **Resolved.** Added `8C75` to `victus_s_thermal_profile_boards[]` in `driver/hp-wmi.c` with `omen_v1_no_ec_thermal_params` (matching the `8BAC` fix) to bypass EC thermal profile reads and prevent silent fan-write aborts. Also added `8C75` to `capabilities.rs` with `supports_fan_control_ec: false` and flagged it as `is_wmaa_abort_prone_board` so the daemon correctly reports degraded/ProfileOnly control instead of FullControl.
+
 ---
 
 ## Active User Feedback / Open Issues (Omen Space 2.0)

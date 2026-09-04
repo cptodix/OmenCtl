@@ -181,9 +181,9 @@ static const char *const omen_thermal_profile_boards[] = {
 	"894A", "89EB", "8A15", "8A18", "8A42", "8A43", "8BAD", "8C58", "8E41",
 	/*
 	 * FIX: 8D41 (HP Omen Max), 8BAC (HP Omen 16-wf0xxx), 8BA9, 8E35,
-	 * 8C77, 8BCD removed from this list so they fall through to the
-	 * Victus S-series thermal profile path, which correctly handles
-	 * boards with no EC thermal profile readback.
+	 * 8C75 (HP Omen 17-db0xxx), 8C77, 8BCD removed from this list so
+	 * they fall through to the Victus S-series thermal profile path,
+	 * which correctly handles boards with no EC thermal profile readback.
 	 */
 };
 
@@ -316,6 +316,16 @@ static const struct dmi_system_id victus_s_thermal_profile_boards[] __initconst 
 		 * methods.  Use no-EC params to skip EC thermal profile reads.
 		 */
 		.matches    = {DMI_MATCH(DMI_BOARD_NAME, "8BAC")},
+		.driver_data = (void *)&omen_v1_no_ec_thermal_params,
+	},
+	{
+		/*
+		 * 8C75: HP Omen 17-db0xxx.  Same broken GETB helper as 8BAC
+		 * (AE_AML_BUFFER_LIMIT on _SB.WMID.WMBX / WMBA) causes all
+		 * WMID writes to abort silently, leaving fans stuck at 0 RPM
+		 * after an overheat.  Use no-EC params to skip EC reads.
+		 */
+		.matches    = {DMI_MATCH(DMI_BOARD_NAME, "8C75")},
 		.driver_data = (void *)&omen_v1_no_ec_thermal_params,
 	},
 	{

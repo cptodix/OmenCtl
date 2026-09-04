@@ -224,8 +224,10 @@ impl LinuxCapabilityClassifier {
     }
 
     fn is_wmaa_abort_prone_board(board_id: &str) -> bool {
-        board_id.trim().eq_ignore_ascii_case("8BCD")
-    }
+		// 8BCD: ACPI WMAA/WHCM aborts (field-reported)
+		// 8C75: broken GETB zero-length CreateField → AE_AML_BUFFER_LIMIT on all WMID methods
+		matches!(board_id.trim().to_uppercase().as_str(), "8BCD" | "8C75")
+	}
 }
 
 pub fn detect(board_id: &str, product_name: &str, cpu_model: &str) -> ModelCapabilities {
@@ -301,6 +303,15 @@ fn get_all_models() -> &'static [ModelCapabilities] {
         
         // OMEN 17 Series
         model!("8BB1", "OMEN 17 / Victus 15", 2023, "OMEN/Victus", { has_mux_switch: true, supports_fan_control_ec: false }),
+        // Issue #175: 8C75 has a broken GETB ACPI helper (same as 8BAC) that causes
+        // AE_AML_BUFFER_LIMIT on all WMID writes — fans silently stuck at 0 RPM.
+        model!("8C75", "OMEN 17-db0xxx", 2024, "OMEN", {
+            has_mux_switch: true,
+            supports_fan_control_ec: false,
+            notes: "Broken GETB ACPI helper (AE_AML_BUFFER_LIMIT on WMID WMBX/WMBA). \
+                    Fan writes abort silently; no-EC params applied. Fan may stick at 0 RPM \
+                    after an overheat EC reset until driver re-applies thermal profile.".to_string()
+        }),
         
         // Victus Series
         model!("88EC", "Victus by HP 16-e0xxx", 2021, "Victus", { has_mux_switch: false, supports_fan_control_ec: true }),
