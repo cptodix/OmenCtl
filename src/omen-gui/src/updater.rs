@@ -163,7 +163,7 @@ fn show_firmware_update_modal(window: &adw::ApplicationWindow) {
     glib::spawn_future_local(async move {
         let (tx, rx) = tokio::sync::oneshot::channel();
         crate::daemon_client::get_runtime().spawn(async move {
-            let output = tokio::process::Command::new("fwupdmgr").arg("refresh").output().await;
+            let output = tokio::process::Command::new("fwupdmgr").args(["refresh", "--force"]).output().await;
             let _ = tx.send(output);
         });
 
@@ -228,7 +228,7 @@ fn show_app_update_modal(window: &adw::ApplicationWindow) {
         let (tx, rx) = tokio::sync::oneshot::channel();
         crate::daemon_client::get_runtime().spawn(async move {
             let output = tokio::process::Command::new("curl")
-                .args(["-s", "https://api.github.com/repos/yunusemreyl/OmenCtl/releases/latest"])
+                .args(["-s", "https://api.github.com/repos/yunusemreyl/omen-space/releases/latest"])
                 .output()
                 .await;
             let _ = tx.send(output);
