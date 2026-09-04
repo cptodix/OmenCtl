@@ -1,11 +1,24 @@
-use ksni::menu::{StandardItem, SubMenu};
+use ksni::menu::{CheckmarkItem, StandardItem, SubMenu};
 use ksni::MenuItem;
-use std::process::Command;
 use log::{error, info};
+use std::process::Command;
+use std::sync::OnceLock;
 use zbus::{Connection, Result as ZbusResult};
 
-#[allow(dead_code)]
-#[derive(Debug)]
+static RUNTIME: OnceLock<tokio::runtime::Handle> = OnceLock::new();
+
+fn spawn_task<F>(f: F)
+where
+    F: std::future::Future<Output = ()> + Send + 'static,
+{
+    if let Some(handle) = RUNTIME.get() {
+        handle.spawn(f);
+    } else {
+        error!("Tokio runtime handle is not initialized");
+    }
+}
+
+#[derive(Debug, Clone)]
 struct Tray {
     power_profile: String,
     fan_mode: String,
@@ -27,16 +40,43 @@ impl ksni::Tray for Tray {
     fn icon_name(&self) -> String {
         "omenspace".into()
     }
-    
+
+    fn icon_theme_path(&self) -> String {
+        "/usr/share/omen-space/assets".into()
+    }
+
     fn title(&self) -> String {
         "OMEN SPACE".into()
+    }
+
+    fn tool_tip(&self) -> ksni::ToolTip {
+        let p_label = match self.power_profile.as_str() {
+            "performance" => "Performans",
+            "power-saver" | "eco" => "Eko",
+            _ => "Dengeli",
+        };
+        let f_label = match self.fan_mode.as_str() {
+            "max" => "Maksimum",
+            "ec" => "EC (Donanım)",
+            "custom" => "Özel",
+            _ => "Otomatik",
+        };
+        ksni::ToolTip {
+            title: "OMEN Space".into(),
+            description: format!("Güç: {}\nFan: {}", p_label, f_label),
+            icon_name: "omenspace".into(),
+            ..Default::default()
+        }
     }
 
     fn activate(&mut self, _x: i32, _y: i32) {
         let _ = Command::new("omen-gui").spawn();
     }
-    
+
     fn menu(&self) -> Vec<ksni::MenuItem<Self>> {
+        let cur_power = self.power_profile.as_str();
+        let cur_fan = self.fan_mode.as_str();
+
         vec![
             StandardItem {
                 label: "OMENSpace'i Aç".into(),
@@ -45,45 +85,95 @@ impl ksni::Tray for Tray {
                     let _ = Command::new("omen-gui").spawn();
                 }),
                 ..Default::default()
-            }.into(),
+            }
+            .into(),
             MenuItem::Separator,
             SubMenu {
                 label: "⚡ Güç Profili".into(),
                 submenu: vec![
-                    StandardItem {
+                    CheckmarkItem {
                         label: "🔥 Performans".into(),
-                        activate: Box::new(|_| { tokio::spawn(async { set_power_profile("performance").await; }); }),
+                        checked: cur_power == "performance",
+                        activate: Box::new(|tray: &mut Self| {
+                            tray.power_profile = "performance".into();
+                            spawn_task(async {
+                                set_power_profile("performance").await;
+                            });
+                        }),
                         ..Default::default()
-                    }.into(),
-                    StandardItem {
+                    }
+                    .into(),
+                    CheckmarkItem {
                         label: "⚖️ Dengeli".into(),
-                        activate: Box::new(|_| { tokio::spawn(async { set_power_profile("balanced").await; }); }),
+                        checked: cur_power == "balanced",
+                        activate: Box::new(|tray: &mut Self| {
+                            tray.power_profile = "balanced".into();
+                            spawn_task(async {
+                                set_power_profile("balanced").await;
+                            });
+                        }),
                         ..Default::default()
-                    }.into(),
-                    StandardItem {
+                    }
+                    .into(),
+                    CheckmarkItem {
                         label: "🍃 Eko".into(),
-                        activate: Box::new(|_| { tokio::spawn(async { set_power_profile("eco").await; }); }),
+                        checked: cur_power == "power-saver" || cur_power == "eco",
+                        activate: Box::new(|tray: &mut Self| {
+                            tray.power_profile = "power-saver".into();
+                            spawn_task(async {
+                                set_power_profile("power-saver").await;
+                            });
+                        }),
                         ..Default::default()
-                    }.into(),
+                    }
+                    .into(),
                 ],
                 ..Default::default()
-            }.into(),
+            }
+            .into(),
             SubMenu {
                 label: "❄️ Fan Modu".into(),
                 submenu: vec![
-                    StandardItem {
+                    CheckmarkItem {
                         label: "🤖 Otomatik".into(),
-                        activate: Box::new(|_| { tokio::spawn(async { set_fan_mode("auto").await; }); }),
+                        checked: cur_fan == "auto",
+                        activate: Box::new(|tray: &mut Self| {
+                            tray.fan_mode = "auto".into();
+                            spawn_task(async {
+                                set_fan_mode("auto").await;
+                            });
+                        }),
                         ..Default::default()
-                    }.into(),
-                    StandardItem {
+                    }
+                    .into(),
+                    CheckmarkItem {
                         label: "🌪️ Maksimum".into(),
-                        activate: Box::new(|_| { tokio::spawn(async { set_fan_mode("max").await; }); }),
+                        checked: cur_fan == "max",
+                        activate: Box::new(|tray: &mut Self| {
+                            tray.fan_mode = "max".into();
+                            spawn_task(async {
+                                set_fan_mode("max").await;
+                            });
+                        }),
                         ..Default::default()
-                    }.into(),
+                    }
+                    .into(),
+                    CheckmarkItem {
+                        label: "⚙️ EC (Donanım)".into(),
+                        checked: cur_fan == "ec",
+                        activate: Box::new(|tray: &mut Self| {
+                            tray.fan_mode = "ec".into();
+                            spawn_task(async {
+                                set_fan_mode("ec").await;
+                            });
+                        }),
+                        ..Default::default()
+                    }
+                    .into(),
                 ],
                 ..Default::default()
-            }.into(),
+            }
+            .into(),
             MenuItem::Separator,
             StandardItem {
                 label: "❌ Çıkış".into(),
@@ -92,46 +182,80 @@ impl ksni::Tray for Tray {
                     std::process::exit(0);
                 }),
                 ..Default::default()
-            }.into(),
+            }
+            .into(),
         ]
     }
 }
 
+#[zbus::proxy(
+    interface = "org.hp.omen.Power",
+    default_service = "org.hp.omen",
+    default_path = "/org/hp/omen/Power"
+)]
+trait Power {
+    async fn set_power_profile(&self, profile: &str) -> zbus::Result<String>;
+    async fn get_power_profile(&self) -> zbus::Result<String>;
+}
+
+#[zbus::proxy(
+    interface = "org.hp.omen.Fan",
+    default_service = "org.hp.omen",
+    default_path = "/org/hp/omen/Fan"
+)]
+trait Fan {
+    async fn set_fan_mode(&self, mode: &str) -> zbus::Result<String>;
+    async fn get_fan_mode(&self) -> zbus::Result<String>;
+}
+
 async fn get_conn() -> ZbusResult<Connection> {
-    match Connection::system().await {
-        Ok(c) => Ok(c),
-        Err(_) => Connection::session().await,
+    Connection::system().await
+}
+
+async fn fetch_power_profile() -> Option<String> {
+    if let Ok(conn) = get_conn().await {
+        if let Ok(proxy) = PowerProxy::new(&conn).await {
+            if let Ok(json_str) = proxy.get_power_profile().await {
+                if let Ok(val) = serde_json::from_str::<serde_json::Value>(&json_str) {
+                    if let Some(active) = val.get("active").and_then(|v| v.as_str()) {
+                        return Some(active.to_string());
+                    }
+                }
+            }
+        }
     }
+    None
+}
+
+async fn fetch_fan_mode() -> Option<String> {
+    if let Ok(conn) = get_conn().await {
+        if let Ok(proxy) = FanProxy::new(&conn).await {
+            if let Ok(mode) = proxy.get_fan_mode().await {
+                return Some(mode.trim().to_string());
+            }
+        }
+    }
+    None
 }
 
 async fn set_power_profile(profile: &str) {
     if let Ok(conn) = get_conn().await {
-        if let Err(e) = conn.call_method(
-            Some("org.hp.omen"),
-            "/org/hp/omen/Power",
-            Some("org.hp.omen.Power"),
-            "SetPowerProfile",
-            &(profile)
-        ).await {
-            error!("Power profili değiştirilemedi: {}", e);
-        } else {
-            info!("Güç profili ayarlandı: {}", profile);
+        if let Ok(proxy) = PowerProxy::new(&conn).await {
+            match proxy.set_power_profile(profile).await {
+                Ok(resp) => info!("Güç profili ayarlandı ({}) -> {}", profile, resp),
+                Err(e) => error!("Güç profili değiştirilemedi: {}", e),
+            }
         }
     }
 }
 
 async fn set_fan_mode(mode: &str) {
     if let Ok(conn) = get_conn().await {
-        if let Err(e) = conn.call_method(
-            Some("org.hp.omen"),
-            "/org/hp/omen/Fan",
-            Some("org.hp.omen.Fan"),
-            "SetFanMode",
-            &(mode)
-        ).await {
-            error!("Fan modu değiştirilemedi: {}", e);
-        } else {
-            info!("Fan modu ayarlandı: {}", mode);
+        if let Ok(proxy) = FanProxy::new(&conn).await {
+            match proxy.set_fan_mode(mode).await {
+                Ok(resp) => info!("Fan modu ayarlandı ({}) -> {}", mode, resp),
+                Err(e) => error!("Fan modu değiştirilemedi: {}", e),
+            }
         }
     }
 }
@@ -140,18 +264,36 @@ async fn set_fan_mode(mode: &str) {
 async fn main() {
     env_logger::init();
     info!("omen-tray başlatılıyor...");
-    
+
+    RUNTIME
+        .set(tokio::runtime::Handle::current())
+        .expect("Failed to initialize runtime handle");
+
+    let initial_power = fetch_power_profile().await.unwrap_or_else(|| "balanced".into());
+    let initial_fan = fetch_fan_mode().await.unwrap_or_else(|| "auto".into());
+
     let tray = Tray {
-        power_profile: "balanced".into(),
-        fan_mode: "auto".into(),
+        power_profile: initial_power,
+        fan_mode: initial_fan,
     };
-    
+
     let service = ksni::TrayService::new(tray);
-    let _handle = service.handle();
+    let handle = service.handle();
     service.spawn();
-    
-    // Uygulamayı açık tut
+
     loop {
-        tokio::time::sleep(std::time::Duration::from_secs(3600)).await;
+        tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+        let p = fetch_power_profile().await;
+        let f = fetch_fan_mode().await;
+        if p.is_some() || f.is_some() {
+            handle.update(|tray| {
+                if let Some(new_p) = p {
+                    tray.power_profile = new_p;
+                }
+                if let Some(new_f) = f {
+                    tray.fan_mode = new_f;
+                }
+            });
+        }
     }
 }
