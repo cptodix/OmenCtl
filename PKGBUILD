@@ -55,8 +55,7 @@ package() {
   cp data/99-omen-space.rules "$pkgdir/usr/lib/udev/rules.d/"
 
   # Desktop integration and assets
-  cp data/omen-space.desktop "$pkgdir/usr/share/applications/"
-  ln -sf omen-space.desktop "$pkgdir/usr/share/applications/org.hp.OmenSpace.desktop"
+  cp data/org.hp.OmenSpace.desktop "$pkgdir/usr/share/applications/"
   cp src/omen-gui/assets/omenspace.png "$pkgdir/usr/share/pixmaps/omenspace.png"
   cp src/omen-gui/assets/omenspace.png "$pkgdir/usr/share/icons/hicolor/512x512/apps/omenspace.png"
   cp -r src/omen-gui/assets/* "$pkgdir/usr/share/omen-space/assets/"
