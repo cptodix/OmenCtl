@@ -230,7 +230,7 @@ do_install() {
     cp data/omen-space-daemon.service /etc/systemd/system/
     cp data/sysusers.d/omen-space.conf /usr/lib/sysusers.d/
     cp data/99-omen-space.rules /usr/lib/udev/rules.d/
-    rm -f /usr/share/applications/omen-space.desktop
+    rm -f /usr/share/applications/omen-space.desktop /usr/share/applications/org.hp.OmenSpace.desktop
     cp data/org.hp.OmenSpace.desktop /usr/share/applications/
     mkdir -p /usr/share/icons/hicolor/512x512/apps
     cp src/omen-gui/assets/omenspace.png /usr/share/icons/hicolor/512x512/apps/omenspace.png
