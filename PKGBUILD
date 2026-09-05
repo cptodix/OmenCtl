@@ -9,7 +9,7 @@ arch=('x86_64')
 url="https://github.com/yunusemreyl/omen-space"
 license=('GPL')
 depends=('dkms' 'polkit' 'gtk4' 'libadwaita')
-makedepends=('git' 'gcc' 'make' 'pkg-config' 'cargo')
+makedepends=('git' 'gcc' 'make' 'pkg-config' 'rust')
 provides=('omen-space')
 conflicts=('omen-space' 'hp-laptop-manager' 'omenctl')
 source=('git+https://github.com/yunusemreyl/omen-space.git')
@@ -22,9 +22,7 @@ pkgver() {
 
 build() {
   cd "$srcdir/${pkgname%-git}"
-  for crate in omen-space-daemon omen-cli omen-tray omen-gui; do
-    (cd "src/$crate" && cargo build --release --locked)
-  done
+  cargo build --release --locked
 }
 
 package() {
@@ -40,14 +38,15 @@ package() {
   mkdir -p "$pkgdir/usr/bin"
   mkdir -p "$pkgdir/usr/share/applications"
   mkdir -p "$pkgdir/usr/share/pixmaps"
+  mkdir -p "$pkgdir/usr/share/icons/hicolor/512x512/apps"
   mkdir -p "$pkgdir/usr/share/omen-space/assets"
   mkdir -p "$pkgdir/etc/xdg/autostart"
 
   # Binaries
-  cp src/omen-space-daemon/target/release/omen-space-daemon "$pkgdir/usr/libexec/omen-space/"
-  cp src/omen-cli/target/release/omen-cli "$pkgdir/usr/bin/"
-  cp src/omen-tray/target/release/omen-tray "$pkgdir/usr/bin/"
-  cp src/omen-gui/target/release/omen-gui "$pkgdir/usr/bin/"
+  cp target/release/omen-space-daemon "$pkgdir/usr/libexec/omen-space/"
+  cp target/release/omen-cli "$pkgdir/usr/bin/"
+  cp target/release/omen-tray "$pkgdir/usr/bin/"
+  cp target/release/omen-gui "$pkgdir/usr/bin/"
 
   # System configuration files
   cp data/org.hp.omen.conf "$pkgdir/etc/dbus-1/system.d/"
@@ -57,7 +56,9 @@ package() {
 
   # Desktop integration and assets
   cp data/omen-space.desktop "$pkgdir/usr/share/applications/"
+  ln -sf omen-space.desktop "$pkgdir/usr/share/applications/org.hp.OmenSpace.desktop"
   cp src/omen-gui/assets/omenspace.png "$pkgdir/usr/share/pixmaps/omenspace.png"
+  cp src/omen-gui/assets/omenspace.png "$pkgdir/usr/share/icons/hicolor/512x512/apps/omenspace.png"
   cp -r src/omen-gui/assets/* "$pkgdir/usr/share/omen-space/assets/"
 
   # Autostart tray

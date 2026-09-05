@@ -132,19 +132,13 @@ do_build() {
     if ! command -v cargo &> /dev/null; then
         echo "cargo not found for root. Attempting to build as SUDO_USER if available..."
         if [[ -n "$SUDO_USER" ]]; then
-            su - "$SUDO_USER" -c "export PATH=\"\$HOME/.cargo/bin:\$PATH\"; cd '$SCRIPT_DIR/src/omen-space-daemon' && cargo build --release"
-            su - "$SUDO_USER" -c "export PATH=\"\$HOME/.cargo/bin:\$PATH\"; cd '$SCRIPT_DIR/src/omen-cli' && cargo build --release"
-            su - "$SUDO_USER" -c "export PATH=\"\$HOME/.cargo/bin:\$PATH\"; cd '$SCRIPT_DIR/src/omen-tray' && cargo build --release"
-            su - "$SUDO_USER" -c "export PATH=\"\$HOME/.cargo/bin:\$PATH\"; cd '$SCRIPT_DIR/src/omen-gui' && cargo build --release"
+            su - "$SUDO_USER" -c "export PATH=\"\$HOME/.cargo/bin:\$PATH\"; cd '$SCRIPT_DIR' && cargo build --release"
         else
             echo "Error: cargo is not installed or not in PATH for root."
             exit 1
         fi
     else
-        (cd src/omen-space-daemon && cargo build --release)
-        (cd src/omen-cli && cargo build --release)
-        (cd src/omen-tray && cargo build --release)
-        (cd src/omen-gui && cargo build --release)
+        cargo build --release
     fi
 }
 
@@ -171,22 +165,40 @@ do_install() {
     mkdir -p /usr/share/pixmaps
     mkdir -p /etc/xdg/autostart
 
+    find_bin() {
+        local name="$1"
+        if [[ -f "$SCRIPT_DIR/target/release/$name" ]]; then
+            echo "$SCRIPT_DIR/target/release/$name"
+        elif [[ -f "$SCRIPT_DIR/src/$name/target/release/$name" ]]; then
+            echo "$SCRIPT_DIR/src/$name/target/release/$name"
+        else
+            echo ""
+        fi
+    }
+
+    local daemon_bin=$(find_bin "omen-space-daemon")
+    local cli_bin=$(find_bin "omen-cli")
+    local tray_bin=$(find_bin "omen-tray")
+    local gui_bin=$(find_bin "omen-gui")
+
     rm -f /usr/libexec/omen-space/omen-space-daemon
-    cp src/omen-space-daemon/target/release/omen-space-daemon /usr/libexec/omen-space/
+    cp "${daemon_bin:-src/omen-space-daemon/target/release/omen-space-daemon}" /usr/libexec/omen-space/
     rm -f /usr/bin/omen-cli
-    cp src/omen-cli/target/release/omen-cli /usr/bin/
+    cp "${cli_bin:-src/omen-cli/target/release/omen-cli}" /usr/bin/
     rm -f /usr/bin/omen-tray
-    cp src/omen-tray/target/release/omen-tray /usr/bin/
+    cp "${tray_bin:-src/omen-tray/target/release/omen-tray}" /usr/bin/
     rm -f /usr/bin/omen-gui
-    cp src/omen-gui/target/release/omen-gui /usr/bin/
+    cp "${gui_bin:-src/omen-gui/target/release/omen-gui}" /usr/bin/
 
     cp data/org.hp.omen.conf /etc/dbus-1/system.d/
     cp data/omen-space-daemon.service /etc/systemd/system/
     cp data/sysusers.d/omen-space.conf /usr/lib/sysusers.d/
     cp data/99-omen-space.rules /usr/lib/udev/rules.d/
     cp data/omen-space.desktop /usr/share/applications/
+    ln -sf /usr/share/applications/omen-space.desktop /usr/share/applications/org.hp.OmenSpace.desktop 2>/dev/null || true
     mkdir -p /usr/share/icons/hicolor/512x512/apps
     cp src/omen-gui/assets/omenspace.png /usr/share/icons/hicolor/512x512/apps/omenspace.png
+    cp src/omen-gui/assets/omenspace.png /usr/share/pixmaps/omenspace.png
     gtk-update-icon-cache -f -t /usr/share/icons/hicolor || true
     cp -r src/omen-gui/assets/* /usr/share/omen-space/assets/
 
