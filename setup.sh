@@ -280,6 +280,11 @@ EOF
         echo -e "\n❌ ERROR: CLI failed to communicate with the daemon. Check 'systemctl status omen-space-daemon'."
     fi
 
+    # Launch tray for the current desktop user if running via sudo
+    if [[ -n "$SUDO_USER" ]]; then
+        su - "$SUDO_USER" -c "nohup /usr/bin/omen-tray >/dev/null 2>&1 &" 2>/dev/null || true
+    fi
+
     echo "====================================="
     echo " Cleaning build cache to free disk space..."
     echo "====================================="
