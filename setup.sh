@@ -23,6 +23,9 @@ install_dependencies() {
     elif command -v pacman &> /dev/null; then
         echo "Detected Arch Linux. Installing dependencies via pacman..."
         pacman -S --needed --noconfirm rust cargo gcc pkgconf gtk4 libadwaita systemd dbus base-devel linux-headers dkms
+    elif command -v zypper &> /dev/null; then
+        echo "Detected openSUSE. Installing dependencies via zypper..."
+        zypper install -y rust cargo gcc make pkgconfig gtk4-devel libadwaita-devel systemd-devel dbus-1-devel kernel-devel dkms
     else
         echo "Warning: Unsupported package manager. Please ensure rust, cargo, gtk4, and libadwaita dev packages are installed."
     fi
