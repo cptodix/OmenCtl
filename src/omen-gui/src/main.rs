@@ -20,6 +20,9 @@ mod asset_resolver;
 const APP_ID: &str = "org.hp.OmenSpace";
 
 fn main() {
+    let rt = daemon_client::get_runtime();
+    let _guard = rt.enter();
+
     let app = adw::Application::builder().application_id(APP_ID).build();
     app.connect_startup(|_| {
         adw::init().expect("Failed to initialize libadwaita");
