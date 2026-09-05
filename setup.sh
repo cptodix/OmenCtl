@@ -247,7 +247,7 @@ EOF
     echo "====================================="
     echo " Cleaning build cache to free disk space..."
     echo "====================================="
-    rm -rf src/*/target
+    rm -rf target src/*/target
 }
 
 do_uninstall() {
@@ -273,6 +273,7 @@ do_uninstall() {
     
     rm -rf /usr/share/omen-space
     rm -f /usr/share/applications/omen-space.desktop
+    rm -f /usr/share/applications/org.hp.OmenSpace.desktop
     rm -f /usr/share/pixmaps/omenspace.png
     rm -f /usr/share/icons/hicolor/512x512/apps/omenspace.png
     gtk-update-icon-cache -f -t /usr/share/icons/hicolor || true
