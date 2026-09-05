@@ -200,6 +200,7 @@ do_install() {
     mkdir -p /usr/share/applications
     mkdir -p /usr/share/pixmaps
     mkdir -p /etc/xdg/autostart
+    mkdir -p /usr/share/dbus-1/services
 
     find_bin() {
         local name="$1"
@@ -232,6 +233,7 @@ do_install() {
     cp data/99-omen-space.rules /usr/lib/udev/rules.d/
     rm -f /usr/share/applications/omen-space.desktop /usr/share/applications/org.hp.OmenSpace.desktop
     cp data/org.hp.OmenSpace.desktop /usr/share/applications/
+    cp data/org.hp.OmenSpace.service /usr/share/dbus-1/services/
     mkdir -p /usr/share/icons/hicolor/512x512/apps
     cp src/omen-gui/assets/omenspace.png /usr/share/icons/hicolor/512x512/apps/omenspace.png
     cp src/omen-gui/assets/omenspace.png /usr/share/pixmaps/omenspace.png
@@ -319,6 +321,7 @@ do_uninstall() {
     rm -rf /usr/share/omen-space
     rm -f /usr/share/applications/omen-space.desktop
     rm -f /usr/share/applications/org.hp.OmenSpace.desktop
+    rm -f /usr/share/dbus-1/services/org.hp.OmenSpace.service
     rm -f /usr/share/pixmaps/omenspace.png
     rm -f /usr/share/icons/hicolor/512x512/apps/omenspace.png
     gtk-update-icon-cache -f -t /usr/share/icons/hicolor || true

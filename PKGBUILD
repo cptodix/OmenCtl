@@ -37,6 +37,7 @@ package() {
   mkdir -p "$pkgdir/usr/lib/udev/rules.d"
   mkdir -p "$pkgdir/usr/bin"
   mkdir -p "$pkgdir/usr/share/applications"
+  mkdir -p "$pkgdir/usr/share/dbus-1/services"
   mkdir -p "$pkgdir/usr/share/pixmaps"
   mkdir -p "$pkgdir/usr/share/icons/hicolor/512x512/apps"
   mkdir -p "$pkgdir/usr/share/omen-space/assets"
@@ -56,6 +57,7 @@ package() {
 
   # Desktop integration and assets
   cp data/org.hp.OmenSpace.desktop "$pkgdir/usr/share/applications/"
+  cp data/org.hp.OmenSpace.service "$pkgdir/usr/share/dbus-1/services/"
   cp src/omen-gui/assets/omenspace.png "$pkgdir/usr/share/pixmaps/omenspace.png"
   cp src/omen-gui/assets/omenspace.png "$pkgdir/usr/share/icons/hicolor/512x512/apps/omenspace.png"
   cp -r src/omen-gui/assets/* "$pkgdir/usr/share/omen-space/assets/"
