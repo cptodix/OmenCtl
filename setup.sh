@@ -254,6 +254,12 @@ EOF
     echo "Creating system users and reloading udev rules..."
     systemd-sysusers || true
     udevadm control --reload-rules && udevadm trigger || true
+    
+    # Automatically add the invoking sudo user to the omen-hw group
+    if [[ -n "$SUDO_USER" && "$SUDO_USER" != "root" ]]; then
+        echo "Adding user '$SUDO_USER' to omen-hw group..."
+        usermod -aG omen-hw "$SUDO_USER" || true
+    fi
 
     echo "====================================="
     echo " Installing DKMS Kernel Driver"
