@@ -190,6 +190,7 @@ sudo ./setup.sh uninstall  # Completely removes OMENSpace, daemon, and the DKMS 
 - **Ubuntu / Debian / Pop!_OS:** Uses `apt-get` to install dependencies and kernel development packages.
 - **Arch Linux / Manjaro:** Uses `pacman` to install build dependencies, or install directly using the provided `PKGBUILD` (`makepkg -si`).
 - **NixOS:** Provided `flake.nix` enables simple installation via `nix profile install github:yunusemreyl/omen-space`.
+- **OpenSUSE:** Uses `zypper` to install dependencies and kernel development packages.
 
 ---
 

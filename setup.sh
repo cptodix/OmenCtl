@@ -23,7 +23,7 @@ install_dependencies() {
     elif command -v pacman &> /dev/null; then
         echo "Detected Arch Linux. Installing dependencies via pacman..."
         local ARCH_PKGS=(rust gcc pkgconf gtk4 libadwaita systemd dbus base-devel dkms)
-        
+
         # Only install headers if not already available for the running kernel
         if [ ! -d "/lib/modules/$(uname -r)/build" ] && [ ! -d "/usr/lib/modules/$(uname -r)/build" ]; then
             local RUNNING_KVER
@@ -59,6 +59,9 @@ install_dependencies() {
             fi
         fi
         pacman -S --needed --noconfirm "${ARCH_PKGS[@]}"
+    elif command -v zypper &> /dev/null; then
+        echo "Detected openSUSE. Installing dependencies via zypper..."
+        zypper install -y rust cargo gcc make pkgconfig gtk4-devel libadwaita-devel systemd-devel dbus-1-devel kernel-devel dkms
     else
         echo "Warning: Unsupported package manager. Please ensure rust, cargo, gtk4, and libadwaita dev packages are installed."
     fi
@@ -254,7 +257,7 @@ EOF
     echo "Creating system users and reloading udev rules..."
     systemd-sysusers || true
     udevadm control --reload-rules && udevadm trigger || true
-    
+
     # Automatically add the invoking sudo user to the omen-hw group
     if [[ -n "$SUDO_USER" && "$SUDO_USER" != "root" ]]; then
         echo "Adding user '$SUDO_USER' to omen-hw group..."
@@ -311,7 +314,7 @@ do_uninstall() {
     killall omen-tray 2>/dev/null || true
     killall omen-gui 2>/dev/null || true
     systemctl disable omen-space-daemon.service 2>/dev/null || true
-    
+
     rm -rf /usr/libexec/omen-space
     rm -rf /etc/omen-space
     rm -rf /var/lib/omen-space /var/lib/omen-space-daemon
@@ -319,11 +322,11 @@ do_uninstall() {
     rm -f /etc/systemd/system/omen-space-daemon.service
     rm -f /usr/lib/sysusers.d/omen-space.conf
     rm -f /usr/lib/udev/rules.d/99-omen-space.rules
-    
+
     rm -f /usr/bin/omen-cli
     rm -f /usr/bin/omen-tray
     rm -f /usr/bin/omen-gui
-    
+
     rm -rf /usr/share/omen-space
     rm -f /usr/share/applications/omen-space.desktop
     rm -f /usr/share/applications/org.hp.OmenSpace.desktop
