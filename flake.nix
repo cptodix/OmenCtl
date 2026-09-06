@@ -45,6 +45,7 @@
               mkdir -p $out/lib/sysusers.d
               mkdir -p $out/lib/udev/rules.d
               mkdir -p $out/share/dbus-1/system.d
+              mkdir -p $out/share/dbus-1/services
               mkdir -p $out/share/applications
               mkdir -p $out/share/pixmaps
               mkdir -p $out/share/omen-space/assets
@@ -58,7 +59,8 @@
               cp data/sysusers.d/omen-space.conf $out/lib/sysusers.d/
               cp data/99-omen-space.rules $out/lib/udev/rules.d/
               cp data/org.hp.omen.conf $out/share/dbus-1/system.d/
-              cp data/omen-space.desktop $out/share/applications/
+              cp data/org.hp.OmenSpace.desktop $out/share/applications/
+              cp data/org.hp.OmenSpace.service $out/share/dbus-1/services/
               cp src/omen-gui/assets/omenspace.png $out/share/pixmaps/
               cp -r src/omen-gui/assets/* $out/share/omen-space/assets/
 

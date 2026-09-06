@@ -87,7 +87,7 @@ The kernel module.
 System integration files.
 - `org.hp.omen.conf`: Polkit / D-Bus security policy allowing standard users to communicate with the root daemon.
 - `omen-space-daemon.service`: The systemd service definition.
-- `omen-space.desktop`: The application launcher for Desktop Environments (GNOME, KDE).
+- `org.hp.OmenSpace.desktop`: The application launcher for Desktop Environments (GNOME, KDE).
 - `99-omen-space.rules`: Udev rules to ensure devices have correct permissions.
 
 ---
