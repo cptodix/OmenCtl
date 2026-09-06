@@ -22,7 +22,43 @@ install_dependencies() {
         apt-get install -y cargo rustc build-essential pkg-config libgtk-4-dev libadwaita-1-dev libsystemd-dev libdbus-1-dev dkms linux-headers-$(uname -r)
     elif command -v pacman &> /dev/null; then
         echo "Detected Arch Linux. Installing dependencies via pacman..."
-        pacman -S --needed --noconfirm rust cargo gcc pkgconf gtk4 libadwaita systemd dbus base-devel linux-headers dkms
+        local ARCH_PKGS=(rust gcc pkgconf gtk4 libadwaita systemd dbus base-devel dkms)
+
+        # Only install headers if not already available for the running kernel
+        if [ ! -d "/lib/modules/$(uname -r)/build" ] && [ ! -d "/usr/lib/modules/$(uname -r)/build" ]; then
+            local RUNNING_KVER
+            RUNNING_KVER=$(uname -r)
+            if [[ $RUNNING_KVER == *"-cachyos"* ]]; then
+                local SUFFIX
+                SUFFIX=$(echo "$RUNNING_KVER" | sed 's/^[0-9.]*-[0-9]*-\(.*\)/\1/')
+                if [[ -n "$SUFFIX" ]] && pacman -Si "linux-$SUFFIX-headers" &>/dev/null 2>&1; then
+                    ARCH_PKGS+=("linux-$SUFFIX-headers")
+                elif pacman -Si linux-cachyos-headers &>/dev/null 2>&1; then
+                    ARCH_PKGS+=("linux-cachyos-headers")
+                else
+                    ARCH_PKGS+=("linux-headers")
+                fi
+            elif [[ $RUNNING_KVER == *"-zen"* ]]; then
+                ARCH_PKGS+=("linux-zen-headers")
+            elif [[ $RUNNING_KVER == *"-lts"* ]]; then
+                ARCH_PKGS+=("linux-lts-headers")
+            elif [[ $RUNNING_KVER == *"-hardened"* ]]; then
+                ARCH_PKGS+=("linux-hardened-headers")
+            elif [[ $RUNNING_KVER == *"-rt"* ]]; then
+                ARCH_PKGS+=("linux-rt-headers")
+            else
+                local KVER_MAJOR KVER_MINOR VERSIONED_PKG
+                KVER_MAJOR=$(echo "$RUNNING_KVER" | cut -d. -f1)
+                KVER_MINOR=$(echo "$RUNNING_KVER" | cut -d. -f2)
+                VERSIONED_PKG="linux${KVER_MAJOR}${KVER_MINOR}-headers"
+                if pacman -Si "$VERSIONED_PKG" &>/dev/null 2>&1; then
+                    ARCH_PKGS+=("$VERSIONED_PKG")
+                else
+                    ARCH_PKGS+=("linux-headers")
+                fi
+            fi
+        fi
+        pacman -S --needed --noconfirm "${ARCH_PKGS[@]}"
     elif command -v zypper &> /dev/null; then
         echo "Detected openSUSE. Installing dependencies via zypper..."
         zypper install -y rust cargo gcc make pkgconfig gtk4-devel libadwaita-devel systemd-devel dbus-1-devel kernel-devel dkms
@@ -135,19 +171,13 @@ do_build() {
     if ! command -v cargo &> /dev/null; then
         echo "cargo not found for root. Attempting to build as SUDO_USER if available..."
         if [[ -n "$SUDO_USER" ]]; then
-            su - "$SUDO_USER" -c "export PATH=\"\$HOME/.cargo/bin:\$PATH\"; cd '$SCRIPT_DIR/src/omen-space-daemon' && cargo build --release"
-            su - "$SUDO_USER" -c "export PATH=\"\$HOME/.cargo/bin:\$PATH\"; cd '$SCRIPT_DIR/src/omen-cli' && cargo build --release"
-            su - "$SUDO_USER" -c "export PATH=\"\$HOME/.cargo/bin:\$PATH\"; cd '$SCRIPT_DIR/src/omen-tray' && cargo build --release"
-            su - "$SUDO_USER" -c "export PATH=\"\$HOME/.cargo/bin:\$PATH\"; cd '$SCRIPT_DIR/src/omen-gui' && cargo build --release"
+            su - "$SUDO_USER" -c "export PATH=\"\$HOME/.cargo/bin:\$PATH\"; cd '$SCRIPT_DIR' && cargo build --release"
         else
             echo "Error: cargo is not installed or not in PATH for root."
             exit 1
         fi
     else
-        (cd src/omen-space-daemon && cargo build --release)
-        (cd src/omen-cli && cargo build --release)
-        (cd src/omen-tray && cargo build --release)
-        (cd src/omen-gui && cargo build --release)
+        cargo build --release
     fi
 }
 
@@ -173,23 +203,43 @@ do_install() {
     mkdir -p /usr/share/applications
     mkdir -p /usr/share/pixmaps
     mkdir -p /etc/xdg/autostart
+    mkdir -p /usr/share/dbus-1/services
+
+    find_bin() {
+        local name="$1"
+        if [[ -f "$SCRIPT_DIR/target/release/$name" ]]; then
+            echo "$SCRIPT_DIR/target/release/$name"
+        elif [[ -f "$SCRIPT_DIR/src/$name/target/release/$name" ]]; then
+            echo "$SCRIPT_DIR/src/$name/target/release/$name"
+        else
+            echo ""
+        fi
+    }
+
+    local daemon_bin=$(find_bin "omen-space-daemon")
+    local cli_bin=$(find_bin "omen-cli")
+    local tray_bin=$(find_bin "omen-tray")
+    local gui_bin=$(find_bin "omen-gui")
 
     rm -f /usr/libexec/omen-space/omen-space-daemon
-    cp src/omen-space-daemon/target/release/omen-space-daemon /usr/libexec/omen-space/
+    cp "${daemon_bin:-src/omen-space-daemon/target/release/omen-space-daemon}" /usr/libexec/omen-space/
     rm -f /usr/bin/omen-cli
-    cp src/omen-cli/target/release/omen-cli /usr/bin/
+    cp "${cli_bin:-src/omen-cli/target/release/omen-cli}" /usr/bin/
     rm -f /usr/bin/omen-tray
-    cp src/omen-tray/target/release/omen-tray /usr/bin/
+    cp "${tray_bin:-src/omen-tray/target/release/omen-tray}" /usr/bin/
     rm -f /usr/bin/omen-gui
-    cp src/omen-gui/target/release/omen-gui /usr/bin/
+    cp "${gui_bin:-src/omen-gui/target/release/omen-gui}" /usr/bin/
 
     cp data/org.hp.omen.conf /etc/dbus-1/system.d/
     cp data/omen-space-daemon.service /etc/systemd/system/
     cp data/sysusers.d/omen-space.conf /usr/lib/sysusers.d/
     cp data/99-omen-space.rules /usr/lib/udev/rules.d/
-    cp data/omen-space.desktop /usr/share/applications/
+    rm -f /usr/share/applications/omen-space.desktop /usr/share/applications/org.hp.OmenSpace.desktop
+    cp data/org.hp.OmenSpace.desktop /usr/share/applications/
+    cp data/org.hp.OmenSpace.service /usr/share/dbus-1/services/
     mkdir -p /usr/share/icons/hicolor/512x512/apps
     cp src/omen-gui/assets/omenspace.png /usr/share/icons/hicolor/512x512/apps/omenspace.png
+    cp src/omen-gui/assets/omenspace.png /usr/share/pixmaps/omenspace.png
     gtk-update-icon-cache -f -t /usr/share/icons/hicolor || true
     cp -r src/omen-gui/assets/* /usr/share/omen-space/assets/
 
@@ -207,6 +257,12 @@ EOF
     echo "Creating system users and reloading udev rules..."
     systemd-sysusers || true
     udevadm control --reload-rules && udevadm trigger || true
+
+    # Automatically add the invoking sudo user to the omen-hw group
+    if [[ -n "$SUDO_USER" && "$SUDO_USER" != "root" ]]; then
+        echo "Adding user '$SUDO_USER' to omen-hw group..."
+        usermod -aG omen-hw "$SUDO_USER" || true
+    fi
 
     echo "====================================="
     echo " Installing DKMS Kernel Driver"
@@ -235,10 +291,19 @@ EOF
         echo -e "\n❌ ERROR: CLI failed to communicate with the daemon. Check 'systemctl status omen-space-daemon'."
     fi
 
+    if [ -n "$SUDO_USER" ] && [ -x /usr/bin/omen-tray ]; then
+        local user_id
+        user_id=$(id -u "$SUDO_USER")
+        if [ -d "/run/user/$user_id" ]; then
+            echo "Starting omen-tray for $SUDO_USER..."
+            su - "$SUDO_USER" -c "DISPLAY=${DISPLAY:-:0} WAYLAND_DISPLAY=${WAYLAND_DISPLAY:-wayland-0} XDG_RUNTIME_DIR=/run/user/$user_id /usr/bin/omen-tray >/dev/null 2>&1 &" || true
+        fi
+    fi
+
     echo "====================================="
     echo " Cleaning build cache to free disk space..."
     echo "====================================="
-    rm -rf src/*/target
+    rm -rf target src/*/target
 }
 
 do_uninstall() {
@@ -249,7 +314,7 @@ do_uninstall() {
     killall omen-tray 2>/dev/null || true
     killall omen-gui 2>/dev/null || true
     systemctl disable omen-space-daemon.service 2>/dev/null || true
-    
+
     rm -rf /usr/libexec/omen-space
     rm -rf /etc/omen-space
     rm -rf /var/lib/omen-space /var/lib/omen-space-daemon
@@ -257,13 +322,15 @@ do_uninstall() {
     rm -f /etc/systemd/system/omen-space-daemon.service
     rm -f /usr/lib/sysusers.d/omen-space.conf
     rm -f /usr/lib/udev/rules.d/99-omen-space.rules
-    
+
     rm -f /usr/bin/omen-cli
     rm -f /usr/bin/omen-tray
     rm -f /usr/bin/omen-gui
-    
+
     rm -rf /usr/share/omen-space
     rm -f /usr/share/applications/omen-space.desktop
+    rm -f /usr/share/applications/org.hp.OmenSpace.desktop
+    rm -f /usr/share/dbus-1/services/org.hp.OmenSpace.service
     rm -f /usr/share/pixmaps/omenspace.png
     rm -f /usr/share/icons/hicolor/512x512/apps/omenspace.png
     gtk-update-icon-cache -f -t /usr/share/icons/hicolor || true
