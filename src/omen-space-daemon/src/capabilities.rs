@@ -230,6 +230,38 @@ impl LinuxCapabilityClassifier {
 		// 8DD0: AE_AML_BUFFER_LIMIT flood → RGB failure
 		matches!(board_id.trim().to_uppercase().as_str(), "8BCD" | "8C75" | "878A" | "8DD0")
 	}
+
+    /// Returns true when the board_id appears in the community-verified list.
+    ///
+    /// A "verified" board is one where a user has run the full checklist
+    /// (modes, fans, power gain, GPU power, graphics, lighting) and confirmed
+    /// every control behaves as expected.  Boards not in this list still receive
+    /// full daemon service; the GUI simply shows a one-time banner asking the
+    /// user to file a verification issue.
+    pub fn is_board_verified(board_id: &str) -> bool {
+        // List mirrors the "Verified" table in docs/ and known-good community
+        // reports from GitHub issues / Discord field logs.
+        matches!(
+            board_id.trim().to_uppercase().as_str(),
+            // OMEN Legacy
+            "8A14" | "8A15" | "8574" | "8600" | "8787" | "878C" | "88D2" | "8BAD"
+            // OMEN 16
+            | "8BAF" | "8BB0" | "8BCA" | "8BAB" | "8C76" | "8C77" | "8BA9"
+            | "8BCD" | "8D24" | "8E35" | "8D26" | "8D2F"
+            // OMEN 17
+            | "8BB1" | "8A18" | "8E10" | "8603" | "8B9D" | "8B9E"
+            // OMEN Transcend
+            | "8C3A" | "8C3B" | "8C58" | "8E41"
+            // Victus
+            | "88D9" | "88DA" | "8A3E" | "8DCD" | "8A26" | "8A25"
+            | "8BD4" | "8C2F" | "88DB" | "88EC" | "88EE" | "8C3F"
+            | "8E5E" | "8A3D"
+            // Victus 16-d (kernel hp-wmi list)
+            | "88F8"
+            // Victus 16-r/s (kernel hp-wmi list)
+            | "8BBE" | "8BD5" | "8C99" | "8C9C"
+        )
+    }
 }
 
 pub fn detect(board_id: &str, product_name: &str, cpu_model: &str) -> ModelCapabilities {

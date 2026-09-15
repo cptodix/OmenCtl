@@ -37,6 +37,14 @@ pub struct SystemStats {
 
     pub total_pwr: f64,
     pub cpu_throttle_count: u32,
+
+    /// Chassis / IR sensor (WMI 0x23) in °C. 0 means not available.
+    pub chassis_temp: i32,
+
+    /// True when this board ID is in the community-verified list.
+    /// False triggers a one-time banner in the GUI asking the user to
+    /// file a verification issue on GitHub.
+    pub board_verified: bool,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -83,6 +91,31 @@ struct RaplState {
 }
 static PREV_RAPL: Mutex<Option<RaplState>> = Mutex::new(None);
 static GPU_IDLE_COOLDOWN: Mutex<Option<std::time::Instant>> = Mutex::new(None);
+
+// ── CPU Temperature EWMA Smoother ───────────────────────────────────────────
+// Rising temps are accepted immediately (safety-first: fans must respond).
+// Falling temps decay at 40 % per tick to prevent fan hunting caused by
+// short-lived sensor noise spikes (matches ohman's AutoTick algorithm).
+static SMOOTHED_CPU_TEMP: Mutex<Option<f64>> = Mutex::new(None);
+
+fn smooth_cpu_temp(raw_celsius: i32) -> i32 {
+    let raw = raw_celsius as f64;
+    let mut guard = SMOOTHED_CPU_TEMP.lock().unwrap_or_else(|e| e.into_inner());
+    let smoothed = match *guard {
+        None => raw,
+        Some(prev) => {
+            if raw >= prev {
+                // Rising: take the new value immediately
+                raw
+            } else {
+                // Falling: decay 40 % toward the new value per tick
+                prev + 0.40 * (raw - prev)
+            }
+        }
+    };
+    *guard = Some(smoothed);
+    smoothed.round() as i32
+}
 fn init_sensor_paths() -> SensorPaths {
     let mut cpu_temp_path = None;
     let mut cpu_pwr_path = None;
@@ -553,7 +586,9 @@ pub fn fetch_system_stats() -> SystemStats {
     if let Some(ref p) = paths.cpu_temp_path {
         if let Ok(s) = fs::read_to_string(p) {
             if let Ok(milli) = s.trim().parse::<f64>() {
-                stats.cpu_temp = (milli / 1000.0) as i32;
+                let raw = (milli / 1000.0) as i32;
+                // Apply EWMA smoothing: fast up, slow down
+                stats.cpu_temp = smooth_cpu_temp(raw);
             }
         }
     }
@@ -717,6 +752,22 @@ pub fn fetch_system_stats() -> SystemStats {
     if stats.ram_frac.is_nan() { stats.ram_frac = 0.0; }
     if stats.disk_frac.is_nan() { stats.disk_frac = 0.0; }
     if stats.total_pwr.is_nan() { stats.total_pwr = 0.0; }
+
+    // ── 8. Chassis / IR Temperature (WMI 0x23 via hp-wmi sysfs) ──────────
+    // The file is only created when the firmware supports the query, so a
+    // missing file is a normal "not supported" condition, not an error.
+    let chassis_sysfs = "/sys/devices/platform/hp-wmi/chassis_temp";
+    if let Ok(s) = fs::read_to_string(chassis_sysfs) {
+        if let Ok(v) = s.trim().parse::<i32>() {
+            stats.chassis_temp = v;
+        }
+    }
+
+    // ── 9. Board verification flag ────────────────────────────────────────
+    let board_id = fs::read_to_string("/sys/class/dmi/id/board_name")
+        .unwrap_or_default();
+    stats.board_verified =
+        crate::capabilities::LinuxCapabilityClassifier::is_board_verified(board_id.trim());
 
     stats
 }

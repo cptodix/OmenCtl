@@ -161,6 +161,66 @@ fn build_ui(app: &adw::Application) {
     });
 
     render_ui(&window, "performance");
+
+    // ── Unverified Board Banner ────────────────────────────────────────────
+    // Check once whether the current board is in the community-verified list.
+    // We read board_name directly (same source as the daemon) so the check is
+    // instant and requires no D-Bus round-trip at startup.
+    {
+        let board_id = std::fs::read_to_string("/sys/class/dmi/id/board_name")
+            .unwrap_or_default();
+        let board_id = board_id.trim().to_uppercase();
+
+        // Persist the "user dismissed" state in a flag file.
+        let dismissed_flag = format!(
+            "{}/.cache/omenspace/board_verified_dismissed_{}",
+            std::env::var("HOME").unwrap_or_default(),
+            board_id
+        );
+
+        let is_verified = crate::daemon_client::is_board_verified_sync(&board_id);
+        let already_dismissed = std::path::Path::new(&dismissed_flag).exists();
+
+        if !is_verified && !already_dismissed && !board_id.is_empty() {
+            let issue_url = format!(
+                "https://github.com/yunusemreyl/omen-space/issues/new?template=verify-laptop.yml&title=Verify+my+laptop+%28Board+{}%29",
+                board_id
+            );
+
+            let banner = adw::Banner::builder()
+                .title(&format!(
+                    "⚠️  Board {} için OMEN Space desteği henüz doğrulanmamış.",
+                    board_id
+                ))
+                .button_label("GitHub'da Issue Oluştur")
+                .revealed(true)
+                .build();
+
+            // When user clicks the action button, open the browser and dismiss
+            let dismissed_flag_clone = dismissed_flag.clone();
+            let issue_url_clone = issue_url.clone();
+            let banner_clone = banner.clone();
+            banner.connect_button_clicked(move |_| {
+                let _ = std::process::Command::new("xdg-open")
+                    .arg(&issue_url_clone)
+                    .spawn();
+                // Mark as dismissed
+                if let Some(parent) = std::path::Path::new(&dismissed_flag_clone).parent() {
+                    let _ = std::fs::create_dir_all(parent);
+                }
+                let _ = std::fs::write(&dismissed_flag_clone, "1");
+                banner_clone.set_revealed(false);
+            });
+
+            // Insert banner above the main content
+            if let Some(content) = window.content() {
+                if let Ok(toolbar_view) = content.downcast::<adw::ToolbarView>() {
+                    toolbar_view.add_top_bar(&banner);
+                }
+            }
+        }
+    }
+
     window.present();
 }
 

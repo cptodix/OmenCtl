@@ -192,6 +192,25 @@ pub fn set_power_profile_sync(profile: String) {
     });
 }
 
+/// Returns whether the given board_id is in the community-verified list.
+///
+/// This is evaluated entirely in the GUI process (no D-Bus) by embedding the
+/// same list as the daemon's `capabilities::LinuxCapabilityClassifier::is_board_verified`.
+/// It's called once at startup to decide whether to show the unverified-board banner.
+pub fn is_board_verified_sync(board_id: &str) -> bool {
+    matches!(
+        board_id.trim().to_uppercase().as_str(),
+        "8A14" | "8A15" | "8574" | "8600" | "8787" | "878C" | "88D2" | "8BAD"
+        | "8BAF" | "8BB0" | "8BCA" | "8BAB" | "8C76" | "8C77" | "8BA9"
+        | "8BCD" | "8D24" | "8E35" | "8D26" | "8D2F"
+        | "8BB1" | "8A18" | "8E10" | "8603" | "8B9D" | "8B9E"
+        | "8C3A" | "8C3B" | "8C58" | "8E41"
+        | "88D9" | "88DA" | "8A3E" | "8DCD" | "8A26" | "8A25"
+        | "8BD4" | "8C2F" | "88DB" | "88EC" | "88EE" | "8C3F"
+        | "8E5E" | "8A3D" | "88F8" | "8BBE" | "8BD5" | "8C99" | "8C9C"
+    )
+}
+
 pub fn set_fan_mode_sync(mode: String) {
     let rt = get_runtime();
     rt.spawn(async move {

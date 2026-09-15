@@ -450,6 +450,14 @@ enum hp_wmi_gm_commandtype {
 	HPWMI_VICTUS_S_FAN_SPEED_GET_QUERY = 0x2D,
 	HPWMI_VICTUS_S_FAN_SPEED_SET_QUERY = 0x2E,
 	HPWMI_VICTUS_S_GET_FAN_TABLE_QUERY = 0x2F,
+	/*
+	 * 0x23: Chassis / IR temperature sensor. Returns a single byte in
+	 * out4[0] representing degrees Celsius (measured range 34–50 °C on
+	 * the OMEN Transcend 14 / 8C58).  This is the sensor the firmware's
+	 * own thermal guard uses (thresholds 40 °C / 52 °C in OGH), not
+	 * the CPU package die.  Source: ohman docs/research.md §2.
+	 */
+	HPWMI_CHASSIS_TEMP_QUERY           = 0x23,
 };
 
 enum hp_wmi_command {
@@ -1622,6 +1630,32 @@ static DEVICE_ATTR_RW(gpu_tgp);
 static DEVICE_ATTR_RW(gpu_ppab);
 static DEVICE_ATTR_RW(gpu_mux_mode);
 
+/*
+ * chassis_temp — read-only sysfs attribute exposing the WMI 0x23 chassis/IR
+ * sensor in degrees Celsius.  The value is the board surface temperature read
+ * by the firmware's own thermal guard (OGH thresholds: 40 °C warn, 52 °C
+ * emergency fan override).  It is NOT the CPU die temperature.
+ *
+ * The attribute is hidden on boards where the query is known to be
+ * unsupported (return code HPWMI_RET_INVALID_PARAMETERS or negative errno).
+ */
+static ssize_t chassis_temp_show(struct device *dev,
+				  struct device_attribute *attr, char *buf)
+{
+	u8 out[4] = {0};
+	u8 query_in[4] = {1, 0, 0, 0};
+	int ret;
+
+	ret = hp_wmi_perform_query(HPWMI_CHASSIS_TEMP_QUERY, HPWMI_GM,
+				   out, sizeof(query_in), sizeof(out));
+	if (ret)
+		return ret < 0 ? ret : -EIO;
+
+	return sysfs_emit(buf, "%u\n", out[0]);
+}
+
+static DEVICE_ATTR_RO(chassis_temp);
+
 static struct attribute *hp_wmi_attrs[] = {
 	&dev_attr_display.attr,
 	&dev_attr_hddtemp.attr,
@@ -1633,6 +1667,7 @@ static struct attribute *hp_wmi_attrs[] = {
 	&dev_attr_gpu_tgp.attr,
 	&dev_attr_gpu_ppab.attr,
 	&dev_attr_gpu_mux_mode.attr,
+	&dev_attr_chassis_temp.attr,
 	NULL,
 };
 
@@ -1647,6 +1682,20 @@ static umode_t hp_wmi_attrs_is_visible(struct kobject *kobj,
 
 	if (attr == &dev_attr_gpu_tgp.attr || attr == &dev_attr_gpu_ppab.attr)
 		return is_victus_s_thermal_profile() ? attr->mode : 0;
+
+	/*
+	 * Probe the chassis temp query once to decide visibility.
+	 * A negative errno or a non-zero WMI error hides the attribute.
+	 * We test with the same {1,0,0,0} payload used at read time.
+	 */
+	if (attr == &dev_attr_chassis_temp.attr) {
+		u8 out[4] = {0};
+		u8 q[4] = {1, 0, 0, 0};
+		int r = hp_wmi_perform_query(HPWMI_CHASSIS_TEMP_QUERY,
+					    HPWMI_GM, out, sizeof(q),
+					    sizeof(out));
+		return r ? 0 : attr->mode;
+	}
 
 	return attr->mode;
 }
