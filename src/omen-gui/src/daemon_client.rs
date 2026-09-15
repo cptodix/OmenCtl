@@ -120,6 +120,7 @@ trait Rgb {
 trait Platform {
     async fn set_battery_care(&self, limit: u32) -> zbus::Result<String>;
     async fn run_fan_cleaning(&self) -> zbus::Result<String>;
+    async fn toggle_overlay(&self) -> zbus::Result<String>;
 }
 
 // ── Mux Service Proxy ────────────────────────────────────────────────────────
@@ -466,6 +467,18 @@ pub async fn get_power_profile_async() -> Result<String, Box<dyn std::error::Err
     let conn = get_conn().await?;
     let proxy = PowerProxy::new(&conn).await?;
     let res = proxy.get_power_profile().await?;
+    if let Ok(val) = serde_json::from_str::<serde_json::Value>(&res) {
+        if let Some(active) = val.get("active").and_then(|v| v.as_str()) {
+            return Ok(active.to_string());
+        }
+    }
+    Ok(res)
+}
+
+pub async fn get_power_profile_raw_async() -> Result<String, Box<dyn std::error::Error>> {
+    let conn = get_conn().await?;
+    let proxy = PowerProxy::new(&conn).await?;
+    let res = proxy.get_power_profile().await?;
     Ok(res)
 }
 
@@ -651,4 +664,12 @@ pub async fn export_keymap_report_async() -> Result<String, Box<dyn std::error::
     let res = proxy.export_keymap_report().await?;
     Ok(res)
 }
+
+pub async fn send_toggle_overlay_signal() -> Result<(), zbus::Error> {
+    let conn = get_conn().await?;
+    let proxy = PlatformProxy::new(&conn).await?;
+    let _ = proxy.toggle_overlay().await;
+    Ok(())
+}
+
 

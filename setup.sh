@@ -58,7 +58,7 @@ install_dependencies() {
                 fi
             fi
         fi
-        pacman -S --needed --noconfirm "${ARCH_PKGS[@]}"
+        pacman -S --needed --noconfirm "${ARCH_PKGS[@]}" || true
     elif command -v zypper &> /dev/null; then
         echo "Detected openSUSE. Installing dependencies via zypper..."
         zypper install -y gcc make pkgconfig gtk4-devel libadwaita-devel systemd-devel dbus-1-devel kernel-devel dkms
@@ -234,6 +234,7 @@ do_install() {
     local cli_bin=$(find_bin "omen-cli")
     local tray_bin=$(find_bin "omen-tray")
     local gui_bin=$(find_bin "omen-gui")
+    local overlay_bin=$(find_bin "omen-overlay")
 
     rm -f /usr/libexec/omen-space/omen-space-daemon
     cp "${daemon_bin:-target/release/omen-space-daemon}" /usr/libexec/omen-space/
@@ -243,6 +244,8 @@ do_install() {
     cp "${tray_bin:-target/release/omen-tray}" /usr/bin/
     rm -f /usr/bin/omen-gui
     cp "${gui_bin:-target/release/omen-gui}" /usr/bin/
+    rm -f /usr/bin/omen-overlay
+    cp "${overlay_bin:-target/release/omen-overlay}" /usr/bin/
 
     install -m 644 data/org.hp.omen.conf /etc/dbus-1/system.d/
     install -m 644 data/omen-space-daemon.service /etc/systemd/system/
@@ -283,7 +286,7 @@ EOF
     echo "====================================="
     cd driver
     chmod +x setup.sh
-    ./setup.sh install
+    ./setup.sh install || true
     cd ..
 
     echo "====================================="
@@ -327,6 +330,7 @@ do_uninstall() {
     systemctl stop omen-space-daemon.service 2>/dev/null || true
     killall omen-tray 2>/dev/null || true
     killall omen-gui 2>/dev/null || true
+    killall omen-overlay 2>/dev/null || true
     systemctl disable omen-space-daemon.service 2>/dev/null || true
 
     rm -rf /usr/libexec/omen-space
@@ -340,6 +344,7 @@ do_uninstall() {
     rm -f /usr/bin/omen-cli
     rm -f /usr/bin/omen-tray
     rm -f /usr/bin/omen-gui
+    rm -f /usr/bin/omen-overlay
 
     rm -rf /usr/share/omen-space
     rm -f /usr/share/applications/omen-space.desktop

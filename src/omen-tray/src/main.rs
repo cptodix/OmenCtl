@@ -77,6 +77,60 @@ fn spawn_gui() {
     }
 }
 
+fn ensure_overlay_running() {
+    let is_running = Command::new("pgrep")
+        .arg("-x")
+        .arg("omen-overlay")
+        .output()
+        .map(|o| o.status.success() && !o.stdout.is_empty())
+        .unwrap_or(false);
+
+    if !is_running {
+        let spawned = std::env::current_exe()
+            .ok()
+            .and_then(|p| p.parent().map(|dir| dir.join("omen-overlay")))
+            .and_then(|overlay_path| {
+                if overlay_path.exists() {
+                    Command::new(overlay_path)
+                        .arg("--daemon")
+                        .stdin(std::process::Stdio::null())
+                        .stdout(std::process::Stdio::null())
+                        .stderr(std::process::Stdio::null())
+                        .spawn()
+                        .ok()
+                } else {
+                    None
+                }
+            });
+
+        if spawned.is_none() {
+            let _ = Command::new("omen-overlay")
+                .arg("--daemon")
+                .stdin(std::process::Stdio::null())
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .spawn()
+                .or_else(|_| {
+                    Command::new("/usr/bin/omen-overlay")
+                        .arg("--daemon")
+                        .stdin(std::process::Stdio::null())
+                        .stdout(std::process::Stdio::null())
+                        .stderr(std::process::Stdio::null())
+                        .spawn()
+                });
+        }
+    }
+}
+
+async fn toggle_overlay() {
+    ensure_overlay_running();
+    if let Ok(conn) = get_conn().await {
+        if let Ok(proxy) = PlatformProxy::new(&conn).await {
+            let _ = proxy.toggle_overlay().await;
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 struct Tray {
     power_profile: String,
@@ -148,6 +202,17 @@ impl ksni::Tray for Tray {
                 icon_name: "omenspace".into(),
                 activate: Box::new(|_| {
                     spawn_gui();
+                }),
+                ..Default::default()
+            }
+            .into(),
+            StandardItem {
+                label: t("tray_overlay").into(),
+                icon_name: "preferences-desktop-display".into(),
+                activate: Box::new(|_| {
+                    spawn_task(async {
+                        toggle_overlay().await;
+                    });
                 }),
                 ..Default::default()
             }
@@ -322,6 +387,8 @@ trait Mux {
     default_path = "/org/hp/omen/Platform"
 )]
 trait Platform {
+    async fn toggle_overlay(&self) -> zbus::Result<String>;
+
     #[zbus(signal)]
     async fn macro_key_pressed(&self, key_name: &str) -> zbus::Result<()>;
 }
@@ -446,6 +513,8 @@ async fn main() {
     let service = ksni::TrayService::new(tray);
     let handle = service.handle();
     service.spawn();
+
+    ensure_overlay_running();
 
     // Listen for OMEN key presses from the zero-overhead hotkey monitor
     tokio::spawn(async move {

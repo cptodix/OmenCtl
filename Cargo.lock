@@ -1596,6 +1596,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "omen-overlay"
+version = "2.0.4"
+dependencies = [
+ "clap 4.6.6",
+ "env_logger 0.10.2",
+ "futures",
+ "glib",
+ "gtk4",
+ "libadwaita",
+ "libc",
+ "log",
+ "serde",
+ "serde_json",
+ "tokio",
+ "zbus",
+]
+
+[[package]]
 name = "omen-space-daemon"
 version = "2.0.4"
 dependencies = [

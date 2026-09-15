@@ -72,9 +72,14 @@ pub fn build_page() -> gtk::Box {
     bal_btn.set_group(Some(&eco_btn));
     perf_btn.set_group(Some(&eco_btn));
 
-    eco_btn.connect_toggled(|btn| { if btn.is_active() { daemon_client::set_power_profile_sync("power-saver".to_string()); } });
-    bal_btn.connect_toggled(|btn| { if btn.is_active() { daemon_client::set_power_profile_sync("balanced".to_string()); } });
-    perf_btn.connect_toggled(|btn| { if btn.is_active() { daemon_client::set_power_profile_sync("performance".to_string()); } });
+    let updating_ext = Rc::new(std::cell::Cell::new(false));
+
+    let u1 = updating_ext.clone();
+    eco_btn.connect_toggled(move |btn| { if btn.is_active() && !u1.get() { daemon_client::set_power_profile_sync("power-saver".to_string()); } });
+    let u2 = updating_ext.clone();
+    bal_btn.connect_toggled(move |btn| { if btn.is_active() && !u2.get() { daemon_client::set_power_profile_sync("balanced".to_string()); } });
+    let u3 = updating_ext.clone();
+    perf_btn.connect_toggled(move |btn| { if btn.is_active() && !u3.get() { daemon_client::set_power_profile_sync("performance".to_string()); } });
 
     perf_box.append(&eco_wrap);
     perf_box.append(&bal_wrap);
@@ -110,8 +115,9 @@ pub fn build_page() -> gtk::Box {
         .build());
     ec_btn.set_child(Some(&ec_inner));
     ec_btn.set_tooltip_text(Some(i18n::t("ec_delegate_tooltip")));
-    ec_btn.connect_toggled(|btn| {
-        if btn.is_active() {
+    let u7 = updating_ext.clone();
+    ec_btn.connect_toggled(move |btn| {
+        if btn.is_active() && !u7.get() {
             crate::daemon_client::set_fan_mode_sync("ec".to_string());
         }
     });
@@ -132,7 +138,7 @@ pub fn build_page() -> gtk::Box {
     let current_fan = crate::daemon_client::get_fan_mode_sync();
     if current_fan == "max" {
         max_btn.set_active(true);
-    } else if current_fan == "manual" {
+    } else if current_fan == "custom" || current_fan == "manual" {
         custom_btn.set_active(true);
     } else if current_fan == "ec" {
         ec_btn.set_active(true);
@@ -143,10 +149,70 @@ pub fn build_page() -> gtk::Box {
     custom_btn.set_group(Some(&auto_btn));
     ec_btn.set_group(Some(&auto_btn));
 
-    auto_btn.connect_toggled(|btn| { if btn.is_active() { daemon_client::set_fan_mode_sync("auto".to_string()); } });
-    max_btn.connect_toggled(|btn| { if btn.is_active() { daemon_client::set_fan_mode_sync("max".to_string()); } });
-    // custom_btn toggle will reveal the custom curve builder below, but let's also set the mode.
-    custom_btn.connect_toggled(|btn| { if btn.is_active() { daemon_client::set_fan_mode_sync("custom".to_string()); } });
+    let u4 = updating_ext.clone();
+    auto_btn.connect_toggled(move |btn| { if btn.is_active() && !u4.get() { daemon_client::set_fan_mode_sync("auto".to_string()); } });
+    let u5 = updating_ext.clone();
+    max_btn.connect_toggled(move |btn| { if btn.is_active() && !u5.get() { daemon_client::set_fan_mode_sync("max".to_string()); } });
+    let u6 = updating_ext.clone();
+    custom_btn.connect_toggled(move |btn| { if btn.is_active() && !u6.get() { daemon_client::set_fan_mode_sync("custom".to_string()); } });
+
+    // Live sync timer to update GUI when profile is changed from overlay/tray/CLI
+    {
+        let eco_c = eco_btn.clone();
+        let bal_c = bal_btn.clone();
+        let perf_c = perf_btn.clone();
+        let auto_c = auto_btn.clone();
+        let max_c = max_btn.clone();
+        let custom_c = custom_btn.clone();
+        let ec_c = ec_btn.clone();
+        let u_sync = updating_ext.clone();
+
+        glib::timeout_add_local(std::time::Duration::from_millis(1500), move || {
+            let (tx, rx) = glib::MainContext::channel::<(String, String)>(glib::Priority::default());
+            let eco_c2 = eco_c.clone();
+            let bal_c2 = bal_c.clone();
+            let perf_c2 = perf_c.clone();
+            let auto_c2 = auto_c.clone();
+            let max_c2 = max_c.clone();
+            let custom_c2 = custom_c.clone();
+            let ec_c2 = ec_c.clone();
+            let u_s2 = u_sync.clone();
+
+            rx.attach(None, move |(p, f)| {
+                u_s2.set(true);
+                let p_lower = p.to_lowercase();
+                if p_lower == "performance" {
+                    if !perf_c2.is_active() { perf_c2.set_active(true); }
+                } else if p_lower == "power-saver" || p_lower == "quiet" || p_lower == "eco" {
+                    if !eco_c2.is_active() { eco_c2.set_active(true); }
+                } else {
+                    if !bal_c2.is_active() { bal_c2.set_active(true); }
+                }
+
+                let f_lower = f.to_lowercase();
+                if f_lower == "max" {
+                    if !max_c2.is_active() { max_c2.set_active(true); }
+                } else if f_lower == "custom" || f_lower == "manual" {
+                    if !custom_c2.is_active() { custom_c2.set_active(true); }
+                } else if f_lower == "ec" {
+                    if !ec_c2.is_active() { ec_c2.set_active(true); }
+                } else {
+                    if !auto_c2.is_active() { auto_c2.set_active(true); }
+                }
+                u_s2.set(false);
+                glib::ControlFlow::Break
+            });
+
+            let rt = crate::daemon_client::get_runtime();
+            rt.spawn(async move {
+                let p = crate::daemon_client::get_power_profile_async().await.unwrap_or_else(|_| "balanced".into());
+                let f = crate::daemon_client::get_fan_mode_async().await.unwrap_or_else(|_| "auto".into());
+                let _ = tx.send((p, f));
+            });
+
+            glib::ControlFlow::Continue
+        });
+    }
 
     fan_box.insert(&auto_wrap, -1);
     fan_box.insert(&max_wrap, -1);

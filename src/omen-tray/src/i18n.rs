@@ -95,6 +95,7 @@ pub fn t(key: &'static str) -> &'static str {
 fn translate_tr(key: &'static str) -> &'static str {
     match key {
         "tray_open" => "OMENSpace'i Aç",
+        "tray_overlay" => "Hızlı Katman (Shift+F2)",
         "power_profile" => "Güç Profili",
         "perf" => "Performans",
         "balanced" => "Dengeli",
@@ -123,6 +124,7 @@ fn translate_tr(key: &'static str) -> &'static str {
 fn translate_en(key: &'static str) -> &'static str {
     match key {
         "tray_open" => "Open OMENSpace",
+        "tray_overlay" => "Quick Overlay (Shift+F2)",
         "power_profile" => "Power Profile",
         "perf" => "Performance",
         "balanced" => "Balanced",

@@ -5,6 +5,7 @@ members = [
     "src/omen-cli",
     "src/omen-tray",
     "src/omen-gui",
+    "src/omen-overlay",
 ]
 resolver = "2"
 

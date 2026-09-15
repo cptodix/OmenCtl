@@ -38,6 +38,11 @@ pub enum Commands {
         #[command(subcommand)]
         cmd: commands::system::SystemCommand,
     },
+    /// Quick HUD Overlay controls (Shift+F2)
+    Overlay {
+        #[command(subcommand)]
+        cmd: commands::overlay::OverlayCommand,
+    },
 }
 
 #[tokio::main]
@@ -80,6 +85,7 @@ async fn run_command(cmd: &Commands, conn: &zbus::Connection) -> Result<()> {
         Commands::Fan { cmd } => commands::fan::handle(cmd, conn).await?,
         Commands::Power { cmd } => commands::power::handle(cmd, conn).await?,
         Commands::System { cmd } => commands::system::handle(cmd, conn).await?,
+        Commands::Overlay { cmd } => commands::overlay::handle(cmd, conn).await?,
     }
     Ok(())
 }

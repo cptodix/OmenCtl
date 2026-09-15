@@ -17,6 +17,7 @@ mod desktop_rgb_gui;
 mod updater;
 mod daemon_client;
 mod asset_resolver;
+mod overlay_page;
 
 const APP_ID: &str = "org.hp.OmenSpace";
 
@@ -62,6 +63,51 @@ fn ensure_tray_running() {
     }
 }
 
+fn ensure_overlay_running() {
+    let is_running = std::process::Command::new("pgrep")
+        .arg("-x")
+        .arg("omen-overlay")
+        .output()
+        .map(|o| o.status.success() && !o.stdout.is_empty())
+        .unwrap_or(false);
+
+    if !is_running {
+        let spawned = std::env::current_exe()
+            .ok()
+            .and_then(|p| p.parent().map(|dir| dir.join("omen-overlay")))
+            .and_then(|overlay_path| {
+                if overlay_path.exists() {
+                    std::process::Command::new(overlay_path)
+                        .arg("--daemon")
+                        .stdin(std::process::Stdio::null())
+                        .stdout(std::process::Stdio::null())
+                        .stderr(std::process::Stdio::null())
+                        .spawn()
+                        .ok()
+                } else {
+                    None
+                }
+            });
+
+        if spawned.is_none() {
+            let _ = std::process::Command::new("omen-overlay")
+                .arg("--daemon")
+                .stdin(std::process::Stdio::null())
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .spawn()
+                .or_else(|_| {
+                    std::process::Command::new("/usr/bin/omen-overlay")
+                        .arg("--daemon")
+                        .stdin(std::process::Stdio::null())
+                        .stdout(std::process::Stdio::null())
+                        .stderr(std::process::Stdio::null())
+                        .spawn()
+                });
+        }
+    }
+}
+
 fn main() {
     let rt = daemon_client::get_runtime();
     let _guard = rt.enter();
@@ -69,6 +115,7 @@ fn main() {
     let app = adw::Application::builder().application_id(APP_ID).build();
     app.connect_startup(|_| {
         ensure_tray_running();
+        ensure_overlay_running();
         adw::init().expect("Failed to initialize libadwaita");
         i18n::init();
         
@@ -333,12 +380,19 @@ fn render_ui(window: &adw::ApplicationWindow, initial_page: &str) {
     page_app_profiles.set_margin_end(m);
     page_app_profiles.set_margin_bottom(m);
 
+    let page_overlay = overlay_page::build_page(window);
+    page_overlay.set_margin_top(m);
+    page_overlay.set_margin_start(m);
+    page_overlay.set_margin_end(m);
+    page_overlay.set_margin_bottom(m);
+
     stack.add_named(&gen_box, Some("performance"));
     stack.add_named(&page_undervolt, Some("undervolt"));
     stack.add_named(&page_mux, Some("mux"));
     stack.add_named(&mon_content, Some("monitoring"));
     stack.add_named(&page_rgb, Some("rgb"));
     stack.add_named(&page_app_profiles, Some("appprof"));
+    stack.add_named(&page_overlay, Some("overlay"));
     stack.add_named(&page_updater, Some("updater"));
     stack.add_named(&page_settings, Some("settings"));
 
@@ -365,6 +419,7 @@ fn render_ui(window: &adw::ApplicationWindow, initial_page: &str) {
         ("omen-monitor-symbolic", i18n::t("nav_monitoring"), "monitoring"),
         ("omen-lighting-symbolic", i18n::t("nav_lighting"), "rgb"),
         ("omen-profiles-symbolic", i18n::t("nav_app_profiles"), "appprof"),
+        ("preferences-desktop-display-symbolic", i18n::t("nav_overlay"), "overlay"),
         ("omen-updater-symbolic", i18n::t("nav_updater"), "updater"),
     ];
 
