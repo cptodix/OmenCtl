@@ -166,7 +166,19 @@ impl AutoUpdateService {
         }
 
         // Fallback: Notify user of downloaded update package
-        let extract_dir_clone = extract_dir.to_string();
+        let mut target_dir = extract_dir.clone();
+        if let Ok(mut entries) = tokio::fs::read_dir(&extract_dir).await {
+            while let Ok(Some(entry)) = entries.next_entry().await {
+                if entry.file_type().await.map(|f| f.is_dir()).unwrap_or(false) {
+                    if entry.file_name().to_string_lossy().starts_with("omen-space") {
+                        target_dir = entry.path().to_string_lossy().to_string();
+                        break;
+                    }
+                }
+            }
+        }
+
+        let extract_dir_clone = target_dir.clone();
         tokio::task::spawn_blocking(move || {
             DesktopNotifier::open_in_user_session(&extract_dir_clone);
         });
@@ -174,7 +186,7 @@ impl AutoUpdateService {
         serde_json::json!({
             "success": true,
             "version": info.latest_version,
-            "message": format!("Downloaded update package to {}. Folder opened for installation.", extract_dir)
+            "message": format!("Update downloaded to {}. Please run 'sudo ./setup.sh update' inside that folder.", target_dir)
         }).to_string()
     }
 }
@@ -194,14 +206,7 @@ async fn fetch_latest_github_release() -> (String, String, String, String) {
             let body = v["body"].as_str().unwrap_or("Release notes unavailable").to_string();
             let html_url = v["html_url"].as_str().unwrap_or("https://github.com/yunusemreyl/omen-space/releases").to_string();
 
-            let mut download_url = format!("https://github.com/{}/releases/download/{}/omen-space-daemon-linux-x64.tar.gz", REPO_OWNER_NAME, tag_name);
-            if let Some(assets) = v["assets"].as_array() {
-                if let Some(first_asset) = assets.first() {
-                    if let Some(dl) = first_asset["browser_download_url"].as_str() {
-                        download_url = dl.to_string();
-                    }
-                }
-            }
+            let download_url = format!("https://github.com/{}/archive/refs/tags/{}.tar.gz", REPO_OWNER_NAME, tag_name);
             return (tag_name, body, html_url, download_url);
         }
     }

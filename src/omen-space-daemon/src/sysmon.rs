@@ -106,10 +106,13 @@ fn init_sensor_paths() -> SensorPaths {
                     let p1 = entry.join("power1_input");
                     if p1.exists() { cpu_pwr_path = Some(p1); }
                 } else if name == "hp_wmi" || name == "hp" || name == "omen" {
-                    let f1 = entry.join("fan1_input");
-                    if f1.exists() { fan1_path = Some(f1); }
-                    let f2 = entry.join("fan2_input");
-                    if f2.exists() { fan2_path = Some(f2); }
+                    let board_id = std::fs::read_to_string("/sys/class/dmi/id/board_name").unwrap_or_default();
+                    if !crate::capabilities::LinuxCapabilityClassifier::is_wmaa_abort_prone_board(&board_id) {
+                        let f1 = entry.join("fan1_input");
+                        if f1.exists() { fan1_path = Some(f1); }
+                        let f2 = entry.join("fan2_input");
+                        if f2.exists() { fan2_path = Some(f2); }
+                    }
                 } else if name.contains("nouveau") || name.contains("amdgpu") || name.contains("nvidia") {
                     let t1 = entry.join("temp1_input");
                     if t1.exists() { gpu_temp_path = Some(t1); }

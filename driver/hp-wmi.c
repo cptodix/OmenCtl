@@ -230,6 +230,11 @@ static const struct dmi_system_id victus_s_thermal_profile_boards[] __initconst 
 		.driver_data = (void *)&omen_v1_no_ec_thermal_params,
 	},
 	{
+		/* 8DD0: Victus by HP Gaming Laptop 15-fb3xxx */
+		.matches    = {DMI_MATCH(DMI_BOARD_NAME, "8DD0")},
+		.driver_data = (void *)&omen_v1_no_ec_thermal_params,
+	},
+	{
 		.matches    = {DMI_MATCH(DMI_BOARD_NAME, "8902")},
 		.driver_data = (void *)&omen_v1_legacy_thermal_params,
 	},
@@ -2031,7 +2036,15 @@ static int platform_profile_omen_get_ec(enum platform_profile_option *profile)
 	return 0;
 }
 
-static int platform_profile_omen_get(struct device *dev,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 14, 0)
+#define PLATFORM_PROFILE_DEV_ARG struct device *dev
+#define PLATFORM_PROFILE_DEV_PASS dev
+#else
+#define PLATFORM_PROFILE_DEV_ARG struct platform_profile_handler *pprof
+#define PLATFORM_PROFILE_DEV_PASS pprof
+#endif
+
+static int platform_profile_omen_get(PLATFORM_PROFILE_DEV_ARG,
 				     enum platform_profile_option *profile)
 {
 	/*
@@ -2154,7 +2167,7 @@ static int platform_profile_omen_set_ec(enum platform_profile_option profile)
 	return 0;
 }
 
-static int platform_profile_omen_set(struct device *dev,
+static int platform_profile_omen_set(PLATFORM_PROFILE_DEV_ARG,
 				     enum platform_profile_option profile)
 {
 	int err;
@@ -2180,7 +2193,7 @@ static int thermal_profile_set(int thermal_profile)
 				    &thermal_profile, sizeof(thermal_profile), 0);
 }
 
-static int hp_wmi_platform_profile_get(struct device *dev,
+static int hp_wmi_platform_profile_get(PLATFORM_PROFILE_DEV_ARG,
 				       enum platform_profile_option *profile)
 {
 	int tp;
@@ -2209,7 +2222,7 @@ static int hp_wmi_platform_profile_get(struct device *dev,
 	return 0;
 }
 
-static int hp_wmi_platform_profile_set(struct device *dev,
+static int hp_wmi_platform_profile_set(PLATFORM_PROFILE_DEV_ARG,
 				       enum platform_profile_option profile)
 {
 	int err, tp;
@@ -2272,11 +2285,11 @@ static int platform_profile_victus_get_ec(enum platform_profile_option *profile)
 	return 0;
 }
 
-static int platform_profile_victus_get(struct device *dev,
+static int platform_profile_victus_get(PLATFORM_PROFILE_DEV_ARG,
 				       enum platform_profile_option *profile)
 {
 	/* Same cached-value behaviour as platform_profile_omen_get() */
-	return platform_profile_omen_get(dev, profile);
+	return platform_profile_omen_get(PLATFORM_PROFILE_DEV_PASS, profile);
 }
 
 static int platform_profile_victus_set_ec(enum platform_profile_option profile)
@@ -2495,7 +2508,7 @@ static int platform_profile_victus_s_set_ec(
 	return 0;
 }
 
-static int platform_profile_victus_s_set(struct device *dev,
+static int platform_profile_victus_s_set(PLATFORM_PROFILE_DEV_ARG,
 					 enum platform_profile_option profile)
 {
 	int err;
@@ -2510,7 +2523,7 @@ static int platform_profile_victus_s_set(struct device *dev,
 	return 0;
 }
 
-static int platform_profile_victus_set(struct device *dev,
+static int platform_profile_victus_set(PLATFORM_PROFILE_DEV_ARG,
 				       enum platform_profile_option profile)
 {
 	int err;
