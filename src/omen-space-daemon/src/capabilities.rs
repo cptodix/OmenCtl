@@ -247,7 +247,7 @@ impl LinuxCapabilityClassifier {
             "8A14" | "8A15" | "8574" | "8600" | "8787" | "878C" | "88D2" | "8BAD"
             // OMEN 16
             | "8BAF" | "8BB0" | "8BCA" | "8BAB" | "8C76" | "8C77" | "8BA9"
-            | "8BCD" | "8D24" | "8E35" | "8D26" | "8D2F"
+            | "8D24" | "8E35" | "8D26" | "8D2F"
             // OMEN 17
             | "8BB1" | "8A18" | "8E10" | "8603" | "8B9D" | "8B9E"
             // OMEN Transcend

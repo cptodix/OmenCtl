@@ -22,6 +22,12 @@ pub struct SystemStats {
     pub disk_frac: f64,
     pub total_pwr: f64,
     pub cpu_throttle_count: u32,
+    /// Chassis / IR sensor (WMI 0x23) in °C. 0 means not available.
+    #[serde(default)]
+    pub chassis_temp: i32,
+    /// True when this board ID is in the community-verified list.
+    #[serde(default)]
+    pub board_verified: bool,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
