@@ -21,7 +21,14 @@ pub fn load_presets() -> Vec<FanPreset> {
     if let Ok(content) = fs::read_to_string(&path) {
         serde_json::from_str(&content).unwrap_or_else(|_| Vec::new())
     } else {
-        Vec::new()
+        let default_quiet = FanPreset {
+            name: "Quiet".to_string(),
+            points: vec![(40.0, 0.0), (55.0, 15.0), (70.0, 35.0), (85.0, 60.0), (100.0, 100.0)],
+        };
+        let defaults = vec![default_quiet];
+        // Don't auto-save here to avoid permission issues if dir doesn't exist,
+        // it will be saved if the user adds/removes presets.
+        defaults
     }
 }
 
