@@ -169,6 +169,7 @@ fn translate_tr(key: &'static str) -> &'static str {
         "nav_monitoring" => "Sistem İzleyici",
         "nav_lighting" => "RGB Studio",
         "nav_app_profiles" => "Profil Yöneticisi",
+        "nav_overlay" => "Ekran Katmanı",
         "nav_updater" => "Güncelleme Merkezi",
         "nav_settings" => "Ayarlar",
 
@@ -179,8 +180,25 @@ fn translate_tr(key: &'static str) -> &'static str {
         "title_monitoring" => "Sistem İzleyici",
         "title_lighting" => "RGB Studio",
         "title_app_profiles" => "Profil Yöneticisi",
+        "title_overlay" => "Hızlı HUD Katmanı (Shift+F2)",
         "title_updater" => "Güncelleme Merkezi",
         "title_settings" => "Ayarlar",
+
+        // Overlay Page & Settings
+        "overlay_desc" => "Shift+F2 kısayolu ile oyun içi ekran üstü HUD panelini yapılandırın ve test edin.",
+        "overlay_group" => "Hızlı HUD Katmanı (Shift+F2)",
+        "overlay_enable" => "Hızlı Katmanı Etkinleştir",
+        "overlay_enable_sub" => "Shift+F2 kısayolu için katmanı arka planda hazır tutar",
+        "overlay_launch_now" => "Katmanı Şimdi Aç / Test Et",
+        "overlay_launch_now_sub" => "Ekran üstü HUD kontrol panelini açar",
+        "overlay_launch_btn" => "Katmanı Aç/Kapat",
+        "overlay_shortcuts_title" => "Kısayollar ve Kontroller",
+        "overlay_shortcuts_sub" => "Shift+F2: Aç/Kapat • 1-3: Güç Profili • Q/W/E: Fan Modu • ESC: Kapat",
+        "overlay_status_title" => "Katman Arka Plan Durumu",
+        "overlay_status_active" => "Çalışıyor (Shift+F2 Dinleniyor)",
+        "overlay_status_inactive" => "Durduruldu",
+        "overlay_preview_title" => "Katman Önizleme & Özellikler",
+        "overlay_preview_desc" => "Shift+F2 tuşuna bastığınızda ekranda cam efektli koyu tema HUD belirir. Oyunlardan çıkmadan anında profil değiştirebilirsiniz.",
 
         // Performance Page
         "system_profiles" => "Sistem Profilleri",
@@ -506,6 +524,7 @@ fn translate_en(key: &'static str) -> &'static str {
         "nav_monitoring" => "System Monitor",
         "nav_lighting" => "RGB Studio",
         "nav_app_profiles" => "Profile Manager",
+        "nav_overlay" => "Quick Overlay",
         "nav_updater" => "Update Center",
         "nav_settings" => "Settings",
 
@@ -516,8 +535,25 @@ fn translate_en(key: &'static str) -> &'static str {
         "title_monitoring" => "System Monitor",
         "title_lighting" => "RGB Studio",
         "title_app_profiles" => "Profile Manager",
+        "title_overlay" => "Quick HUD Overlay (Shift+F2)",
         "title_updater" => "Update Center",
         "title_settings" => "Settings",
+
+        // Overlay Page & Settings
+        "overlay_desc" => "Configure and test the in-game floating HUD overlay triggered by Shift+F2.",
+        "overlay_group" => "Quick HUD Overlay (Shift+F2)",
+        "overlay_enable" => "Enable Quick Overlay",
+        "overlay_enable_sub" => "Keep overlay resident in background for instant Shift+F2 access",
+        "overlay_launch_now" => "Launch Overlay Now / Test",
+        "overlay_launch_now_sub" => "Open on-screen floating HUD overlay",
+        "overlay_launch_btn" => "Toggle Overlay",
+        "overlay_shortcuts_title" => "Shortcuts & Keybindings",
+        "overlay_shortcuts_sub" => "Shift+F2: Toggle • 1-3: Power Profiles • Q/W/E: Fan Modes • ESC: Close",
+        "overlay_status_title" => "Overlay Background Daemon Status",
+        "overlay_status_active" => "Active (Listening for Shift+F2)",
+        "overlay_status_inactive" => "Inactive",
+        "overlay_preview_title" => "Overlay Preview & Capabilities",
+        "overlay_preview_desc" => "Pressing Shift+F2 invokes a glassmorphic floating HUD overlay over games and apps for zero-distraction power and fan switching.",
 
         // Performance Page
         "system_profiles" => "System Profiles",

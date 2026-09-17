@@ -87,6 +87,7 @@ pub trait Platform {
     async fn check_bios_update(&self) -> zbus::Result<String>;
     async fn check_app_update(&self) -> zbus::Result<String>;
     async fn apply_app_update(&self) -> zbus::Result<String>;
+    async fn toggle_overlay(&self) -> zbus::Result<String>;
     async fn ping(&self) -> zbus::Result<String>;
 }
 

@@ -382,7 +382,7 @@ pub fn build_page() -> gtk::Box {
         }
         
         // Load Power Limits separately
-        if let Ok(json) = crate::daemon_client::get_power_profile_async().await {
+        if let Ok(json) = crate::daemon_client::get_power_profile_raw_async().await {
             if let Ok(state) = serde_json::from_str::<serde_json::Value>(&json) {
                 if let Some(pl1) = state.get("pl1_w").and_then(|v| v.as_f64()) {
                     pl1_s_load.set_value(pl1);

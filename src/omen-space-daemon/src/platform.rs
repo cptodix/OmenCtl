@@ -550,6 +550,15 @@ impl PlatformService {
         crate::auto_updater::AutoUpdateService::apply_update().await
     }
 
+    /// ToggleOverlay — Requests the UI/overlay process to toggle visibility.
+    async fn toggle_overlay(&self, #[zbus(signal_context)] ctxt: zbus::SignalContext<'_>) -> String {
+        let _ = Self::macro_key_pressed(&ctxt, "overlay").await;
+        "OK".to_string()
+    }
+
+    #[zbus(signal)]
+    pub async fn macro_key_pressed(ctxt: &zbus::SignalContext<'_>, key_name: &str) -> zbus::Result<()>;
+
     async fn ping(&self) -> String {
         "OK".to_string()
     }
