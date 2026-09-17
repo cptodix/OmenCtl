@@ -59,6 +59,14 @@ makepkg -si
 ```bash
 nix profile install github:yunusemreyl/omen-space
 ```
+
+**Uninstall:**
+If you installed via the quick install script or `setup.sh`:
+```bash
+cd omen-space
+sudo ./setup.sh uninstall
+```
+*(If you deleted the folder, just run `git clone https://github.com/yunusemreyl/omen-space.git` again first).*
 </details>
 
 ---

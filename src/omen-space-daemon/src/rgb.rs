@@ -125,7 +125,7 @@ impl RgbHardware {
                 0 => 2, // Left
                 1 => 1, // Middle
                 2 => 0, // Right
-                _ => 7, // WASD
+                _ => 3, // WASD
             }
         } else if !self.is_new_driver && self.zone_count == 4 {
             // hp-omen-extra/hp_omen_extra, 4-zone: empirically verified
