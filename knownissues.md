@@ -48,6 +48,12 @@ The following issues have been resolved and tested with the Omen Space 2.0 archi
 - **Description:** Running `curl … | sudo bash` to update OmenCtl removed `system76-power` without prompting, because the installer pulled in `power-profiles-daemon` as a dependency which conflicts with `system76-power`.
 - **Status:** ✅ **Resolved.** Added `check_conflicting_power_managers()` to `setup.sh` that runs **before** any package changes. If `system76-power` (or future conflicting tools) is detected, the user is shown a warning explaining the conflict and given the option to abort before the installer touches any packages.
 
+### [8A43/8A44] Bug Report — OMEN Gaming Laptop 16-N0033DX unbootable after install on linux-cachyos-7.2.5 #211
+- **Description:** After installing omen-space via the curl command, the system boots into emergency mode on kernel `linux-cachyos-7.2.5-1`. Booting with `linux-cachyos-lts` (6.18) works fine. Restoring a snapshot without omen-space installed also restores normal boot.
+- **Root Cause:** The installer's stock `hp-wmi` override relied on renaming the stock `.ko` file to `.backup`. On CachyOS/Arch, `modinfo -n hp-wmi` can return the DKMS `updates/` path even before our module is installed, causing the backup step to silently skip. At boot, both the stock and custom `.ko` files are present; the kernel refuses to load the duplicate and drops to emergency mode. This affected all kernels ≥ 7.x where stock `hp-wmi` is shipped (LTS at 6.18 was unaffected because it ships without `hp-wmi`).
+- **Status:** ✅ **Resolved.** Replaced the fragile file-backup mechanism with a `modprobe.d` blacklist (`/etc/modprobe.d/omen-space-hpwmi-override.conf`). The blacklist (`blacklist hp_wmi` + `install hp_wmi /bin/true`) prevents the stock module from loading at boot while the custom DKMS build in `updates/` takes priority. This also restores full feature parity on kernel 7.x — `gpu_tgp`, `gpu_ppab`, `chassis_temp`, and custom fan curves now work correctly. The `STOCK_FAN_SUPPORT`/`FORCE_CUSTOM_HPWMI` dual-mode logic (which previously degraded kernel 7.x users to RGB-only mode) was removed entirely.
+
+
 ---
 
 ## Active User Feedback / Open Issues (Omen Space 2.0)
