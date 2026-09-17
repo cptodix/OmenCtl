@@ -120,12 +120,14 @@ impl RgbHardware {
         // driver and the legacy hp-omen-extra/hp_omen_extra driver, so
         // each needs its own verified table rather than sharing one.
         let actual_zone = if self.is_new_driver && self.zone_count == 4 {
-            // omen-rgb-keyboard, 4-zone: upstream-verified mapping.
+            // omen-rgb-keyboard, 4-zone: the driver only exposes zone00–zone03
+            // (zone_count is 4 precisely because zone04 does not exist), so the
+            // WASD zone lives in zone03 — a write to zone07 would silently no-op.
             match zone {
                 0 => 2, // Left
                 1 => 1, // Middle
                 2 => 0, // Right
-                _ => 7, // WASD
+                _ => 3, // WASD
             }
         } else if !self.is_new_driver && self.zone_count == 4 {
             // hp-omen-extra/hp_omen_extra, 4-zone: empirically verified
