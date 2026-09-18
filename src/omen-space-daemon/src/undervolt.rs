@@ -172,7 +172,25 @@ pub struct UndervoltService {
 }
 
 fn has_ryzenadj() -> bool {
-    std::process::Command::new("which").arg("ryzenadj").output().map(|o| o.status.success()).unwrap_or(false)
+    const COMMON_PATHS: &[&str] = &[
+        "/usr/bin/ryzenadj",
+        "/usr/local/bin/ryzenadj",
+        "/bin/ryzenadj",
+        "/usr/sbin/ryzenadj",
+        "/usr/local/sbin/ryzenadj",
+    ];
+
+    if COMMON_PATHS.iter().any(|path| Path::new(path).is_file()) {
+        return true;
+    }
+
+    std::env::var_os("PATH")
+        .map(|paths| {
+            std::env::split_paths(&paths)
+                .map(|dir| dir.join("ryzenadj"))
+                .any(|path| path.is_file())
+        })
+        .unwrap_or(false)
 }
 
 
