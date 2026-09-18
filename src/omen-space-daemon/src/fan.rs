@@ -335,20 +335,33 @@ impl FanService {
         let pwm_enable_path = hwmon.join("pwm1_enable");
         let pwm_path = hwmon.join("pwm1");
 
-        // Ensure manual mode (pwm1_enable=1)
+        // If pct is 100, use hardware max fan boost (pwm1_enable = 0) to bypass EC RPM limits
+        let target_enable = if pct == 100 { 0 } else { 1 };
+
         if sysfs_exists(&pwm_enable_path).await {
             let current = sysfs_read(&pwm_enable_path, 2).await;
-            if current != 1 {
-                if current == 0 {
+            if current != target_enable {
+                if target_enable == 1 && current == 0 {
                     // Transition through EC hardware control (2) to clear stuck max mode
                     let _ = sysfs_write(&pwm_enable_path, "2").await;
                     tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
                 }
-                if !sysfs_write(&pwm_enable_path, "1").await {
-                    warn!("Failed to set pwm1_enable=1 for manual fan control");
+                if !sysfs_write(&pwm_enable_path, &target_enable.to_string()).await {
+                    warn!("Failed to set pwm1_enable={} for fan control", target_enable);
                     return false;
                 }
             }
+        }
+
+        if target_enable == 0 {
+            // In max fan boost, we don't need to write the PWM duty cycle
+            state.last_written_duty = Some(255);
+            state.last_written_duty_time = Some(std::time::Instant::now());
+            let max_speed = state.max_speeds.values().max().copied().unwrap_or(6000);
+            for &fan_num in &state.found_fans.clone() {
+                state.last_targets.insert(fan_num, max_speed);
+            }
+            return true;
         }
 
         // Write duty cycle

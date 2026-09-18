@@ -115,14 +115,9 @@ fn main() {
 
             // Listen for live system telemetry updates
             let o_telem = overlay.clone();
-            let mut tick_counter = 0u32;
             daemon_client::subscribe_telemetry(move |stats| {
                 if o_telem.window.is_visible() {
                     o_telem.update_telemetry(&stats);
-                    tick_counter += 1;
-                    if tick_counter % 2 == 0 {
-                        o_telem.refresh_initial_state();
-                    }
                 }
             });
         }

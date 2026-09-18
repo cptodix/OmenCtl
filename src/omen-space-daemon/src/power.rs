@@ -245,7 +245,6 @@ impl PowerService {
                         
                         Self::sync_omen_profile(p_prof).await;
                         Self::sync_gpu_power(p_prof).await;
-                        Self::sync_nvidia_power(p_prof, config.clone()).await;
                         
                         if let Some(c) = conn.as_ref() {
                             let _ = c.call_method(Some("org.hp.omen"), "/org/hp/omen/Fan", Some("org.hp.omen.Fan"), "SetFanMode", &p_fan).await;
@@ -270,7 +269,6 @@ impl PowerService {
             
             Self::sync_omen_profile(&p_prof).await;
             Self::sync_gpu_power(&p_prof).await;
-            Self::sync_nvidia_power(&p_prof, config.clone()).await;
             
             if let Some(c) = conn {
                 let _ = c.call_method(Some("org.hp.omen"), "/org/hp/omen/Fan", Some("org.hp.omen.Fan"), "SetFanMode", &p_fan).await;
@@ -507,30 +505,6 @@ impl PowerService {
         info!("GPU TGP/PPAB synced for profile '{}'", profile);
     }
 
-    /// Sync NVIDIA power limit via nvidia-smi — mirrors Python _sync_nvidia_power().
-    async fn sync_nvidia_power(profile: &str, config: std::sync::Arc<tokio::sync::Mutex<PowerConfig>>) {
-        let query = if profile == "performance" { "--query-gpu=power.max_limit" }
-                    else { "--query-gpu=power.default_limit" };
-        if let Ok(out) = tokio::process::Command::new("nvidia-smi")
-            .args([query, "--format=csv,noheader,nounits"])
-            .output()
-            .await
-        {
-            let limit_str = String::from_utf8_lossy(&out.stdout).trim().to_string();
-            if let Ok(limit) = limit_str.parse::<f64>() {
-                let _ = tokio::process::Command::new("nvidia-smi")
-                    .args(["-pl", &(limit as u32).to_string()])
-                    .output()
-                    .await;
-                info!("NVIDIA power limit set to {}W ({})", limit as u32, profile);
-                {
-                    let mut cfg = config.lock().await;
-                    cfg.gpu_w = limit as u32;
-                    cfg.save();
-                }
-            }
-        }
-    }
 
     // ── Intel RAPL power limits ────────────────────────────────────────────────
 
@@ -618,7 +592,6 @@ impl PowerService {
             tokio::spawn(async move {
                 tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
                 Self::sync_gpu_power(&p).await;
-                Self::sync_nvidia_power(&p, cfg_clone).await;
             });
             info!("Power profile set to '{}'", normalized);
             "OK".to_string()
