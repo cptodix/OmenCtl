@@ -12,6 +12,8 @@
   [![Built with Rust](https://img.shields.io/badge/Language-Rust-orange.svg?style=flat-square)]()
 </div>
 
+> **🎉 Special Thanks:** A huge shoutout to **[@aloshy0](https://github.com/aloshy0)** for the incredible "Quick HUD Overlay" PR! Your architectural design and contributions make OMEN Space the ultimate Linux gaming tool.
+
 ---
 
 ## ✨ Features
@@ -19,6 +21,7 @@
 OMEN Space provides everything you need to unlock the full potential of your laptop on Linux, without the bloat.
 
 - 🎛️ **Fan & Thermal Mastery:** Create custom Fan curve splines for near-silent operation without thermal throttling. Includes a dedicated **Fan Cleaning Mode**.
+- 🎮 **Quick HUD Overlay (Shift+F2):** Zero-latency in-game floating GTK4 HUD for instant fan and power mode switching, keeping you focused on the game.
 - ⚡ **Performance Profiles:** Seamlessly switch between `power-saver`, `balanced`, and `performance` ACPI/WMI modes.
 - 🚀 **Ryzen SMU & Undervolting:** Direct MSR-based undervolting, TCC offset control, GPU TGP limits, and AMD Ryzen SMU tuning.
 - 🎮 **MUX Switch:** Native Optimus / dGPU routing switching for maximum gaming performance.
@@ -107,7 +110,7 @@ OMEN Space is a complete rewrite of the legacy Python *OmenCtl*, moving to **Rus
 - **`omen-space-daemon`**: The backend. Runs as a systemd service (root), managing WMI, ACPI, Sysfs, and MSR interactions over secure D-Bus.
 - **`omen-gui`**: A beautifully fast GTK4 + Libadwaita frontend running in user-space.
 - **`omen-tray`**: A lightweight desktop panel applet for quick profile toggling.
-- **`omen-cli`**: A fast scriptable terminal interface.
+- **`omen-cli`**: A fast scriptable terminal interface. Now with HUD commands (`omen-cli overlay toggle`, `omen-cli overlay daemon`).
 - **`hp-omen-extra`**: The underlying DKMS kernel driver extending standard kernel capabilities.
 
 ---
@@ -119,6 +122,6 @@ OMEN Space is licensed under the **GPL-3.0 License** and is driven by an incredi
 - **[yunusemreyl](https://github.com/yunusemreyl)** - Lead Developer
 - **[tuxov](https://github.com/tuxov)** - Kernel Module Lead
 
-Thanks to all our contributors: [@CodesRahul96](https://github.com/CodesRahul96), [@xcellsior](https://github.com/xcellsior), [@TitoTFP](https://github.com/TitoTFP), [@SafSaf0999](https://github.com/SafSaf0999), [@yijean34-source](https://github.com/yijean34-source), and the projects `omencore` & `omen-rgb-keyboard`.
+Thanks to all our contributors: [@aloshy0](https://github.com/aloshy0), [@CodesRahul96](https://github.com/CodesRahul96), [@xcellsior](https://github.com/xcellsior), [@TitoTFP](https://github.com/TitoTFP), [@SafSaf0999](https://github.com/SafSaf0999), [@yijean34-source](https://github.com/yijean34-source), and the projects `omencore` & `omen-rgb-keyboard`.
 
 *Disclaimer: OMEN Space is an independent project and is NOT affiliated with or endorsed by HP.*
