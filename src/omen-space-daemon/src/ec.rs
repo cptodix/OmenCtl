@@ -72,7 +72,7 @@ impl LinuxEcController {
     }
 
     pub fn needs_ec_fallback(&self) -> bool {
-        self.board_id == "8E35" || self.board_id == "8A43"
+        self.board_id == "8E35" || self.board_id == "8A43" || self.board_id == "8A42"
     }
 
     pub fn has_ec_access(&self) -> bool {
@@ -239,7 +239,7 @@ impl LinuxEcController {
         }
 
         // EC Fallback for older boards that don't fully support WMI platform_profile
-        if self.board_id == "8E35" || self.board_id == "8A43" {
+        if self.board_id == "8E35" || self.board_id == "8A43" || self.board_id == "8A42" {
             let val = match mode.to_lowercase().as_str() {
                 "performance" | "max" => 0x31,
                 "cool" | "eco" => 0x50,
