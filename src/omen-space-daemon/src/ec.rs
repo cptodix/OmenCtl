@@ -120,8 +120,10 @@ impl LinuxEcController {
             Ok(mut file) => {
                 if file.seek(SeekFrom::Start(reg)).is_ok() {
                     let mut buf = [0u8; 1];
-                    if file.read_exact(&mut buf).is_ok() {
-                        return buf[0];
+                    if let Ok(n) = file.read(&mut buf) {
+                        if n > 0 {
+                            return buf[0];
+                        }
                     }
                 }
             }
@@ -148,7 +150,7 @@ impl LinuxEcController {
         match OpenOptions::new().read(true).write(true).open(EC_PATH) {
             Ok(mut file) => {
                 if file.seek(SeekFrom::Start(reg)).is_ok() {
-                    if file.write_all(&[value]).is_ok() {
+                    if file.write(&[value]).is_ok() {
                         let _ = file.flush();
                         debug!("EC write_byte success at 0x{:02X} = 0x{:02X}", reg, value);
                         return true;
