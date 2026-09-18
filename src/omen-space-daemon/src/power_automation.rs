@@ -1,4 +1,6 @@
-use log::info;
+use log::{info, error};
+use zbus::fdo::PropertiesProxy;
+use futures::StreamExt;
 use std::fs;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -23,6 +25,36 @@ impl PowerAutomationService {
 
     pub fn start_monitor(&self) {
         let last_state = self.last_ac_state.clone();
+
+        tokio::spawn(async move {
+            if let Ok(conn) = zbus::Connection::system().await {
+                if let Ok(proxy) = PropertiesProxy::builder(&conn)
+                    .destination("net.hadess.PowerProfiles").unwrap()
+                    .path("/net/hadess/PowerProfiles").unwrap()
+                    .build().await {
+                    
+                    if let Ok(mut stream) = proxy.receive_properties_changed().await {
+                        while let Some(signal) = stream.next().await {
+                            if let Ok(args) = signal.args() {
+                                if args.interface_name() == "net.hadess.PowerProfiles" {
+                                    if let Some(val) = args.changed_properties().get("ActiveProfile") {
+                                        if let Ok(profile_str) = <&str>::try_from(val) {
+                                            info!("PPD Profile changed to: {}", profile_str);
+                                            let mode = match profile_str {
+                                                "performance" => "Performance",
+                                                "power-saver" => "Quiet",
+                                                _ => "Default",
+                                            };
+                                            let _ = crate::platform::set_thermal_policy_by_name(mode);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        });
 
         tokio::spawn(async move {
             loop {
