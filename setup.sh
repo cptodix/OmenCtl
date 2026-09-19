@@ -15,14 +15,14 @@ install_dependencies() {
     echo "====================================="
     if command -v dnf &> /dev/null; then
         echo "Detected Fedora/RHEL. Installing dependencies via dnf..."
-        dnf install -y gcc pkgconf-pkg-config gtk4-devel libadwaita-devel systemd-devel make kernel-devel kernel-headers dbus-devel dkms
+        dnf install -y gcc pkgconf-pkg-config gtk4-devel libadwaita-devel systemd-devel make kernel-devel kernel-headers dbus-devel dkms hidapi-devel
     elif command -v apt-get &> /dev/null; then
         echo "Detected Debian/Ubuntu. Installing dependencies via apt..."
         apt-get update
-        apt-get install -y build-essential pkg-config libgtk-4-dev libadwaita-1-dev libsystemd-dev libdbus-1-dev dkms linux-headers-$(uname -r)
+        apt-get install -y build-essential pkg-config libgtk-4-dev libadwaita-1-dev libsystemd-dev libdbus-1-dev dkms linux-headers-$(uname -r) libhidapi-dev
     elif command -v pacman &> /dev/null; then
         echo "Detected Arch Linux. Installing dependencies via pacman..."
-        local ARCH_PKGS=(gcc pkgconf gtk4 libadwaita systemd dbus base-devel dkms)
+        local ARCH_PKGS=(gcc pkgconf gtk4 libadwaita systemd dbus base-devel dkms hidapi)
 
         # Only install headers if not already available for the running kernel
         if [ ! -d "/lib/modules/$(uname -r)/build" ] && [ ! -d "/usr/lib/modules/$(uname -r)/build" ]; then
@@ -61,9 +61,9 @@ install_dependencies() {
         pacman -S --needed --noconfirm "${ARCH_PKGS[@]}" || true
     elif command -v zypper &> /dev/null; then
         echo "Detected openSUSE. Installing dependencies via zypper..."
-        zypper install -y gcc make pkgconfig gtk4-devel libadwaita-devel systemd-devel dbus-1-devel kernel-devel dkms
+        zypper install -y gcc make pkgconfig gtk4-devel libadwaita-devel systemd-devel dbus-1-devel kernel-devel dkms libhidapi-devel
     else
-        echo "Warning: Unsupported package manager. Please ensure gcc, make, pkgconfig, gtk4, and libadwaita dev packages are installed."
+        echo "Warning: Unsupported package manager. Please ensure gcc, make, pkgconfig, gtk4, libadwaita, and hidapi dev packages are installed."
     fi
 }
 

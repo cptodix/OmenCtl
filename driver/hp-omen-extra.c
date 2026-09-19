@@ -97,9 +97,8 @@ static int hp_wmi_perform_query(int query, enum hp_wmi_command command,
 	if (WARN_ON(mid < 0))
 		return mid;
 
-	actual_insize = insize;
+	actual_insize = max_t(int, insize, 128);
 	bios_args_size = struct_size(args, data, actual_insize);
-	bios_args_size = max_t(size_t, bios_args_size, 128);
 	args = kzalloc(bios_args_size, GFP_KERNEL);
 	if (!args)
 		return -ENOMEM;

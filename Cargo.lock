@@ -500,7 +500,7 @@ dependencies = [
 name = "crossterm"
 version = "0.29.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d8b9f2e4c67f833b660cdb0a3523065869fb35570177239812ed4c905aeff87b"
+checksum = "d8b9f2e4c67f833b660cdb0a352.0.6869fb35570177239812ed4c905aeff87b"
 dependencies = [
  "bitflags 2.13.1",
  "crossterm_winapi",
@@ -1265,7 +1265,7 @@ dependencies = [
 name = "iana-time-zone-haiku"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f31827a206f56af32e590ba56d5d2d085f558508192593743f16b2306495269f"
+checksum = "f31827a206f56af32e590ba56d5d2.0.6f558508192593743f16b2306495269f"
 dependencies = [
  "cc",
 ]
@@ -1565,7 +1565,7 @@ dependencies = [
 
 [[package]]
 name = "omen-cli"
-version = "2.0.5"
+version = "2.0.6"
 dependencies = [
  "anyhow",
  "chrono",
@@ -1581,7 +1581,7 @@ dependencies = [
 
 [[package]]
 name = "omen-gui"
-version = "2.0.5"
+version = "2.0.6"
 dependencies = [
  "glib",
  "glob",
@@ -1597,7 +1597,7 @@ dependencies = [
 
 [[package]]
 name = "omen-overlay"
-version = "2.0.5"
+version = "2.0.6"
 dependencies = [
  "clap 4.6.6",
  "env_logger 0.10.2",
@@ -1615,7 +1615,7 @@ dependencies = [
 
 [[package]]
 name = "omen-space-daemon"
-version = "2.0.5"
+version = "2.0.6"
 dependencies = [
  "env_logger 0.11.11",
  "evdev",
@@ -1633,7 +1633,7 @@ dependencies = [
 
 [[package]]
 name = "omen-tray"
-version = "2.0.5"
+version = "2.0.6"
 dependencies = [
  "env_logger 0.10.2",
  "futures",

@@ -3549,6 +3549,24 @@ static void __init setup_active_thermal_profile_params(void)
 			"Please report this to platform-driver-x86@vger.kernel.org\n",
 			dmi_get_system_info(DMI_BOARD_NAME));
 }
+static const struct dmi_system_id broken_omen_hpc_guid_boards[] __initconst = {
+	{
+		.matches = { DMI_MATCH(DMI_BOARD_NAME, "8BCD") },
+	},
+	{
+		.matches = { DMI_MATCH(DMI_BOARD_NAME, "8C75") },
+	},
+	{
+		.matches = { DMI_MATCH(DMI_BOARD_NAME, "8BAC") },
+	},
+	{
+		.matches = { DMI_MATCH(DMI_BOARD_NAME, "878A") },
+	},
+	{
+		.matches = { DMI_MATCH(DMI_BOARD_NAME, "8DD0") },
+	},
+	{}
+};
 
 static int __init hp_wmi_init(void)
 {
@@ -3556,7 +3574,7 @@ static int __init hp_wmi_init(void)
 	int bios_capable;
 	int err, tmp = 0;
 
-	if (wmi_has_guid(HPWMI_OMEN_HPC_GUID)) {
+	if (wmi_has_guid(HPWMI_OMEN_HPC_GUID) && !dmi_check_system(broken_omen_hpc_guid_boards)) {
 		active_bios_guid = HPWMI_OMEN_HPC_GUID;
 		bios_capable = 1;
 	} else if (wmi_has_guid(HPWMI_BIOS_GUID)) {

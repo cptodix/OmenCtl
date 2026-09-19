@@ -1,6 +1,6 @@
 [package]
 name = "omen-space-daemon"
-version = "2.0.5"
+version = "2.0.6"
 edition = "2021"
 
 [dependencies]
@@ -15,4 +15,4 @@ evdev = { version = "0.12", features = ["tokio"] }
 lazy_static = "1.4"
 futures = "0.3.34"
 nvml-wrapper = "0.13.0"
-hidapi = "2.6.7"
+hidapi = { version = "2.6.7", features = ["linux-shared-hidraw"] }
