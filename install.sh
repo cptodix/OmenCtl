@@ -55,22 +55,32 @@ case "${ARG,,}" in
         ;;
     "")
         # Interactive selection
-        echo -e "\nPlease choose your installation channel / Kurulum kanalını seçin:\n"
-        echo -e "  ${BOLD}1) 🟢 Stable (Recommended / Önerilen)${NC}"
-        echo -e "     Official verified release. Maximum stability."
-        echo -e "     Doğrulanmış resmi sürüm. Maksimum kararlılık."
-        echo -e ""
-        echo -e "  ${BOLD}2) 🟡 Canary (Bleeding Edge / Güncel Kod)${NC}"
-        echo -e "     Latest commits from 'main' branch. Newest features & fixes."
-        echo -e "     'main' dalındaki en güncel kodlar ve en yeni özellikler."
-        echo -e ""
+        if [[ "${LANG:-}" == tr_* ]] || [[ "${LC_ALL:-}" == tr_* ]]; then
+            echo -e "\nLütfen kurulum kanalını seçin:\n"
+            echo -e "  ${BOLD}1) 🟢 Stable (Önerilen)${NC}"
+            echo -e "     Doğrulanmış resmi sürüm. Maksimum kararlılık."
+            echo -e ""
+            echo -e "  ${BOLD}2) 🟡 Canary (Güncel Kod)${NC}"
+            echo -e "     'main' dalındaki en güncel kodlar ve en yeni özellikler."
+            echo -e ""
+            PROMPT_TEXT="Seçiminiz [1/2] (Varsayılan: 1): "
+        else
+            echo -e "\nPlease choose your installation channel:\n"
+            echo -e "  ${BOLD}1) 🟢 Stable (Recommended)${NC}"
+            echo -e "     Official verified release. Maximum stability."
+            echo -e ""
+            echo -e "  ${BOLD}2) 🟡 Canary (Bleeding Edge)${NC}"
+            echo -e "     Latest commits from 'main' branch. Newest features & fixes."
+            echo -e ""
+            PROMPT_TEXT="Select [1/2] (Default: 1): "
+        fi
 
         CHOICE=""
         # Handle piping: if stdin is a pipe from curl, read from /dev/tty
         if [ -t 0 ]; then
-            read -rp "Select / Seçiminiz [1/2] (Default: 1): " CHOICE || true
+            read -rp "$PROMPT_TEXT" CHOICE || true
         elif [ -e /dev/tty ]; then
-            read -rp "Select / Seçiminiz [1/2] (Default: 1): " CHOICE < /dev/tty || true
+            read -rp "$PROMPT_TEXT" CHOICE < /dev/tty || true
         else
             warn "No TTY detected. Defaulting to Stable channel."
             CHOICE="1"

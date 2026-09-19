@@ -312,19 +312,18 @@ impl HidPerKeyBackend {
     }
 
     fn write_per_key_colors(&self, key_colors: &[(u8, u8, u8)]) -> bool {
-        let segment_count = (key_colors.len() + Self::KEYS_PER_SEGMENT - 1) / Self::KEYS_PER_SEGMENT;
+        let segment_count = key_colors.len().div_ceil(Self::KEYS_PER_SEGMENT);
         for seg in 0..segment_count {
             let mut packet = self.build_packet(Self::SUB_SET_COLORS);
             packet[3] = seg as u8;
             let start_key = seg * Self::KEYS_PER_SEGMENT;
             let end_key = std::cmp::min(start_key + Self::KEYS_PER_SEGMENT, key_colors.len());
 
-            for k in start_key..end_key {
-                let offset = 4 + (k - start_key) * 3;
+            for (i, &(r, g, b)) in key_colors[start_key..end_key].iter().enumerate() {
+                let offset = 4 + i * 3;
                 if offset + 2 >= Self::PACKET_SIZE {
                     break;
                 }
-                let (r, g, b) = key_colors[k];
                 packet[offset] = r;
                 packet[offset + 1] = g;
                 packet[offset + 2] = b;
@@ -341,9 +340,9 @@ impl HidPerKeyBackend {
         let mut colors = Vec::new();
         for c in colors_hex {
             let hex = c.trim_start_matches('#');
-            let r = u8::from_str_radix(&hex.get(0..2).unwrap_or("00"), 16).unwrap_or(0);
-            let g = u8::from_str_radix(&hex.get(2..4).unwrap_or("00"), 16).unwrap_or(0);
-            let b = u8::from_str_radix(&hex.get(4..6).unwrap_or("00"), 16).unwrap_or(0);
+            let r = u8::from_str_radix(hex.get(0..2).unwrap_or("00"), 16).unwrap_or(0);
+            let g = u8::from_str_radix(hex.get(2..4).unwrap_or("00"), 16).unwrap_or(0);
+            let b = u8::from_str_radix(hex.get(4..6).unwrap_or("00"), 16).unwrap_or(0);
             colors.push((r, g, b));
         }
         while colors.len() < 4 {
@@ -626,7 +625,7 @@ impl RgbService {
             g.anim_step += step_inc;
             let step = g.anim_step;
 
-            let (r1, g1, b1) = parse_hex_color(colors.get(0).map(|s| s.as_str()).unwrap_or("FF0000"));
+            let (r1, g1, b1) = parse_hex_color(colors.first().map(|s| s.as_str()).unwrap_or("FF0000"));
             let (r2, g2, b2) = parse_hex_color(colors.get(1).map(|s| s.as_str()).unwrap_or("0000FF"));
 
             if has_per_key {
@@ -680,7 +679,7 @@ impl RgbService {
                         let mut h = DefaultHasher::new();
                         let slow_step = (step * 2.0) as u64;
                         (slow_step, i).hash(&mut h);
-                        if h.finish() % 20 == 0 {
+                        if h.finish().is_multiple_of(20) {
                             r_final = r1 as f64; g_final = g1 as f64; b_final = b1 as f64;
                         } else {
                             r_final = 0.0; g_final = 0.0; b_final = 0.0;
@@ -762,7 +761,7 @@ impl RgbService {
             } else if mode == "static" {
                 let mut parsed_colors = Vec::new();
                 for i in 0..7 {
-                    let hex = colors.get(10 + i).cloned().unwrap_or_else(|| colors.get(0).cloned().unwrap_or_else(|| "FF0000".to_string()));
+                    let hex = colors.get(10 + i).cloned().unwrap_or_else(|| colors.first().cloned().unwrap_or_else(|| "FF0000".to_string()));
                     parsed_colors.push(parse_hex_color(&hex));
                 }
                 let _ = g.desktop_rgb.set_static_colors(&parsed_colors, brightness as u8);
@@ -936,11 +935,10 @@ impl RgbService {
     async fn test_single_key(&self, index: i32) -> String {
         info!("TestSingleKey: index={}", index);
         let g = self.inner.lock().await;
-        if g.hid_per_key.is_available() {
-            if g.hid_per_key.test_single_key(index as usize, 255, 0, 0) {
+        if g.hid_per_key.is_available()
+            && g.hid_per_key.test_single_key(index as usize, 255, 0, 0) {
                 return "OK".to_string();
             }
-        }
         "FAIL".to_string()
     }
 
@@ -969,9 +967,9 @@ impl RgbService {
 
         let key_colors: Vec<(u8, u8, u8)> = colors.iter().map(|hex| {
             let h = hex.trim_start_matches('#');
-            let r = u8::from_str_radix(&h.get(0..2).unwrap_or("00"), 16).unwrap_or(0);
-            let g_c = u8::from_str_radix(&h.get(2..4).unwrap_or("00"), 16).unwrap_or(0);
-            let b = u8::from_str_radix(&h.get(4..6).unwrap_or("00"), 16).unwrap_or(0);
+            let r = u8::from_str_radix(h.get(0..2).unwrap_or("00"), 16).unwrap_or(0);
+            let g_c = u8::from_str_radix(h.get(2..4).unwrap_or("00"), 16).unwrap_or(0);
+            let b = u8::from_str_radix(h.get(4..6).unwrap_or("00"), 16).unwrap_or(0);
             (r, g_c, b)
         }).collect();
 
@@ -1062,6 +1060,7 @@ fn scale_hex_color(hex: &str, scaler: f64) -> String {
 }
 
 /// Compute animation color per zone — mirrors Python _software_animation_loop logic.
+#[allow(clippy::too_many_arguments)]
 fn compute_anim_color(
     mode: &str, step: f64, eff_idx: usize, zone_count: usize,
     r1: u8, g1: u8, b1: u8, r2: u8, g2: u8, b2: u8,
@@ -1098,7 +1097,7 @@ fn compute_anim_color(
             let mut h = DefaultHasher::new();
             (eff_idx as u64 + step as u64).hash(&mut h);
             let val = h.finish();
-            let factor = if val % 4 == 0 { 0.1 + (val % 90) as f64 / 100.0 } else { 0.2 };
+            let factor = if val.is_multiple_of(4) { 0.1 + (val % 90) as f64 / 100.0 } else { 0.2 };
             ((r1 as f64 * factor) as u8, (g1 as f64 * factor) as u8, (b1 as f64 * factor) as u8)
         }
         "candle" => {

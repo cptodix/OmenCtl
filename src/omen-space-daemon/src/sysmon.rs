@@ -266,8 +266,7 @@ pub fn get_hardware_specs() -> HardwareSpecs {
                 for line in out_str.lines() {
                     if (line.contains("VGA compatible controller") || line.contains("3D controller"))
                         && (line.contains("NVIDIA") || line.contains("AMD") || line.contains("Intel"))
-                    {
-                        if line.contains("NVIDIA") || (gpu_str == "Unknown GPU" && (line.contains("AMD") || line.contains("Intel"))) {
+                        && (line.contains("NVIDIA") || (gpu_str == "Unknown GPU" && (line.contains("AMD") || line.contains("Intel")))) {
                             if let Some(pos) = line.find(": ") {
                                 let desc = &line[pos + 2..];
                                 let clean = if let Some(bracket_end) = desc.find("]: ") {
@@ -278,7 +277,6 @@ pub fn get_hardware_specs() -> HardwareSpecs {
                                 gpu_str = clean.trim().to_string();
                             }
                         }
-                    }
                 }
             }
         }
@@ -373,7 +371,7 @@ pub fn get_hardware_specs() -> HardwareSpecs {
                     if line.contains("NVRM version:") {
                         let parts: Vec<&str> = line.split_whitespace().collect();
                         for part in parts {
-                            if part.contains('.') && part.chars().next().map_or(false, |c| c.is_ascii_digit()) {
+                            if part.contains('.') && part.chars().next().is_some_and(|c| c.is_ascii_digit()) {
                                 return Some(part.to_string());
                             }
                         }
@@ -481,8 +479,8 @@ pub fn get_safe_gpu_temp() -> f64 {
         }
     }
 
-    let mut has_active_clients = false;
     let mut gpu_temp = 0.0;
+    let has_active_clients;
 
     // Check for actual running 3D or compute processes with timeout
     // to prevent hanging Tokio's blocking pool during NVIDIA power state transitions
@@ -502,6 +500,7 @@ pub fn get_safe_gpu_temp() -> f64 {
         // NVML timeout (likely hanging in D3cold transition). Return 0.0 safely.
         return 0.0;
     }
+
 
     if !has_active_clients {
         // Card is awake in D0, but zero applications are using it.

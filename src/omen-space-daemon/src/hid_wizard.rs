@@ -173,9 +173,9 @@ impl HidPerKeyWizard {
 
 fn parse_hex_color(hex: &str) -> (u8, u8, u8) {
     let clean = hex.trim_start_matches('#');
-    let r = u8::from_str_radix(&clean.get(0..2).unwrap_or("FF"), 16).unwrap_or(255);
-    let g = u8::from_str_radix(&clean.get(2..4).unwrap_or("FF"), 16).unwrap_or(255);
-    let b = u8::from_str_radix(&clean.get(4..6).unwrap_or("FF"), 16).unwrap_or(255);
+    let r = u8::from_str_radix(clean.get(0..2).unwrap_or("FF"), 16).unwrap_or(255);
+    let g = u8::from_str_radix(clean.get(2..4).unwrap_or("FF"), 16).unwrap_or(255);
+    let b = u8::from_str_radix(clean.get(4..6).unwrap_or("FF"), 16).unwrap_or(255);
     (r, g, b)
 }
 

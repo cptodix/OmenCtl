@@ -235,7 +235,7 @@ fn build_ui(app: &adw::Application) {
             );
 
             let banner = adw::Banner::builder()
-                .title(&format!(
+                .title(format!(
                     "⚠️  Board {} için OMEN Space desteği henüz doğrulanmamış.",
                     board_id
                 ))
@@ -362,7 +362,7 @@ fn render_ui(window: &adw::ApplicationWindow, initial_page: &str) {
         render_ui(&win_clone, "settings");
     });
 
-    let page_settings = settings::build_page(&window, Some(on_lang_changed), lb_group_opt, lb_preview_group_opt);
+    let page_settings = settings::build_page(window, Some(on_lang_changed), lb_group_opt, lb_preview_group_opt);
     page_settings.set_margin_top(m);
     page_settings.set_margin_start(m);
     page_settings.set_margin_end(m);
@@ -446,7 +446,7 @@ fn render_ui(window: &adw::ApplicationWindow, initial_page: &str) {
         sidebar_labels.push(revealer.clone());
         box_.append(&revealer);
         row.set_child(Some(&box_));
-        row.set_widget_name(*page_name);
+        row.set_widget_name(page_name);
         sidebar_list.append(&row);
     }
 

@@ -1,4 +1,4 @@
-use log::{info, error};
+use log::info;
 use zbus::fdo::PropertiesProxy;
 use futures::StreamExt;
 use std::fs;

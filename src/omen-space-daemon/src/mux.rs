@@ -158,7 +158,7 @@ impl MuxService {
                         .unwrap_or("Unknown GPU");
                     let disp_name = entry.file_name()
                         .and_then(|n| n.to_str())
-                        .and_then(|s| s.splitn(2, '-').nth(1))
+                        .and_then(|s| s.split_once('-').map(|x| x.1))
                         .unwrap_or("unknown")
                         .to_string();
                     result.push(serde_json::json!({ "display": disp_name, "gpu": gpu_name }));

@@ -120,7 +120,7 @@ impl WmiDiagnosticRunner {
         // 3. Fan Telemetry & Duty Cycle Verification (Tests 501 - 700)
         // -----------------------------------------------------------------------
         let hwmon_glob = glob::glob("/sys/class/hwmon/hwmon*").ok();
-        let hwmon_found = hwmon_glob.map_or(false, |mut g| g.next().is_some());
+        let hwmon_found = hwmon_glob.is_some_and(|mut g| g.next().is_some());
 
         for i in 501..=700 {
             let fan_id = (i % 2) + 1;

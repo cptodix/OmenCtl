@@ -111,7 +111,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     tokio::spawn(async move {
         loop {
             tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
-            let stats = tokio::task::spawn_blocking(|| sysmon::fetch_system_stats()).await.unwrap_or_default();
+            let stats = tokio::task::spawn_blocking(sysmon::fetch_system_stats).await.unwrap_or_default();
             let json = serde_json::to_string(&stats).unwrap_or_else(|_| "{}".to_string());
             let _ = sysmon::SysMonInterface::telemetry_updated(&signal_ctx, &json).await;
         }

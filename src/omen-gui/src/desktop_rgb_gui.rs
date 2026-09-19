@@ -84,7 +84,7 @@ pub fn build_desktop_rgb_card(
         btn.add_css_class("circular");
         btn.set_widget_name(&format!("btn_zone_{}", i));
         
-        let label = gtk::Label::builder().label(&format!("Z{}", i+1)).css_classes(["dim-label"]).build();
+        let label = gtk::Label::builder().label(format!("Z{}", i+1)).css_classes(["dim-label"]).build();
         let vbox = gtk::Box::builder().orientation(gtk::Orientation::Vertical).spacing(4).build();
         vbox.append(&btn);
         vbox.append(&label);

@@ -14,7 +14,7 @@ fn get_nvidia_driver_version() -> String {
             if line.contains("NVRM version:") {
                 let parts: Vec<&str> = line.split_whitespace().collect();
                 for part in parts {
-                    if part.contains('.') && part.chars().next().map_or(false, |c| c.is_ascii_digit()) {
+                    if part.contains('.') && part.chars().next().is_some_and(|c| c.is_ascii_digit()) {
                         return format!("{} (NVIDIA Open Kernel)", part);
                     }
                 }

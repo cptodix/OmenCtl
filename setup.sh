@@ -174,17 +174,20 @@ do_build() {
         if [[ -n "$SUDO_USER" ]] && su - "$SUDO_USER" -c "command -v cargo" &> /dev/null; then
             echo "cargo found for user $SUDO_USER, proceeding with build..."
         else
-            echo "Error: 'cargo' is not installed or not in PATH."
-            echo "Please install Rust using rustup:"
-            echo "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"
-            echo "After installation, restart your terminal and run setup.sh again."
-            exit 1
+            echo "cargo is not installed. Installing Rust via rustup automatically..."
+            if [[ -n "$SUDO_USER" ]]; then
+                su - "$SUDO_USER" -c "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y"
+            else
+                curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+                export PATH="$HOME/.cargo/bin:$PATH"
+            fi
         fi
     fi
 
     if ! command -v cargo &> /dev/null; then
         echo "cargo not found for root. Attempting to build as SUDO_USER if available..."
         if [[ -n "$SUDO_USER" ]]; then
+            chown -R "$SUDO_USER":"$SUDO_USER" "$SCRIPT_DIR"
             su - "$SUDO_USER" -c "export PATH=\"\$HOME/.cargo/bin:\$PATH\"; cd '$SCRIPT_DIR' && cargo build --release"
         else
             echo "Error: cargo is not installed or not in PATH for root."

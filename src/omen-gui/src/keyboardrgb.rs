@@ -149,7 +149,7 @@ fn build_interactive_keyboard(
             let row_box = gtk::Box::builder().orientation(gtk::Orientation::Horizontal).spacing(0).halign(gtk::Align::Center).build();
             let mut x_idx = 0;
             for (name, size_mult) in row_keys {
-                let width = (unit_size * *size_mult as f64) as i32;
+                let width = (unit_size * *size_mult) as i32;
                 
                 if name.is_empty() {
                     let spacer = gtk::Box::builder().width_request(width).height_request(height).build();
@@ -157,10 +157,10 @@ fn build_interactive_keyboard(
                     continue;
                 }
                 
-                let display_name = if name.ends_with("_R") { 
-                    &name[..name.len()-2] 
-                } else if name.ends_with("_num") {
-                    &name[..name.len()-4]
+                let display_name = if let Some(stripped) = name.strip_suffix("_R") { 
+                    stripped 
+                } else if let Some(stripped) = name.strip_suffix("_num") {
+                    stripped
                 } else { 
                     name 
                 };
@@ -280,7 +280,7 @@ fn build_interactive_keyboard(
             match current_mode {
                 KeyboardMode::Victus1Zone => {
                     zc_local.borrow_mut()[0] = hex.clone();
-                    for (k, _) in b_map_local.borrow().iter() { kc_local.borrow_mut().insert(k.clone(), hex.clone()); }
+                    for k in b_map_local.borrow().keys() { kc_local.borrow_mut().insert(k.clone(), hex.clone()); }
                     crate::daemon_client::set_color_sync(8, hex.clone());
                 }
                 KeyboardMode::Omen4Zone => {
@@ -288,12 +288,12 @@ fn build_interactive_keyboard(
                         if i < zc_local.borrow().len() { zc_local.borrow_mut()[i] = hex.clone(); }
                         crate::daemon_client::set_color_sync(i as i32, hex.clone());
                     }
-                    for (k, _) in b_map_local.borrow().iter() { kc_local.borrow_mut().insert(k.clone(), hex.clone()); }
+                    for k in b_map_local.borrow().keys() { kc_local.borrow_mut().insert(k.clone(), hex.clone()); }
                 }
                 KeyboardMode::PerKey => {
                     let len = pk_local.borrow().len();
                     for i in 0..len { pk_local.borrow_mut()[i] = hex.clone(); }
-                    for (k, _) in b_map_local.borrow().iter() { kc_local.borrow_mut().insert(k.clone(), hex.clone()); }
+                    for k in b_map_local.borrow().keys() { kc_local.borrow_mut().insert(k.clone(), hex.clone()); }
                     crate::daemon_client::set_per_key_colors_sync(pk_local.borrow().clone());
                 }
                 KeyboardMode::DesktopRgb => {}
@@ -326,7 +326,7 @@ fn build_interactive_keyboard(
             mode_cb_local(current_mode);
             crate::daemon_client::set_color_sync(0, hex.clone());
             let map = b_map_local.borrow();
-            for (k, _) in map.iter() {
+            for k in map.keys() {
                 if crate::keyboardrgb::get_zone_for_key(k) == 1 {
                     kc_local.borrow_mut().insert(k.clone(), hex.clone());
                 }
@@ -359,7 +359,7 @@ fn build_interactive_keyboard(
             mode_cb_local(current_mode);
             crate::daemon_client::set_color_sync(1, hex.clone());
             let map = b_map_local.borrow();
-            for (k, _) in map.iter() {
+            for k in map.keys() {
                 if crate::keyboardrgb::get_zone_for_key(k) == 2 {
                     kc_local.borrow_mut().insert(k.clone(), hex.clone());
                 }
@@ -391,7 +391,7 @@ fn build_interactive_keyboard(
             mode_cb_local(current_mode);
             crate::daemon_client::set_color_sync(2, hex.clone());
             let map = b_map_local.borrow();
-            for (k, _) in map.iter() {
+            for k in map.keys() {
                 if crate::keyboardrgb::get_zone_for_key(k) == 3 {
                     kc_local.borrow_mut().insert(k.clone(), hex.clone());
                 }
@@ -424,7 +424,7 @@ fn build_interactive_keyboard(
             mode_cb_local(current_mode);
             crate::daemon_client::set_color_sync(3, hex.clone());
             let map = b_map_local.borrow();
-            for (k, _) in map.iter() {
+            for k in map.keys() {
                 if crate::keyboardrgb::get_zone_for_key(k) == 4 {
                     kc_local.borrow_mut().insert(k.clone(), hex.clone());
                 }
@@ -491,7 +491,7 @@ fn build_interactive_keyboard(
                     KeyboardMode::Victus1Zone => {
                         zc_local.borrow_mut()[0] = hex.clone();
                         let map = b_map_local.borrow();
-                        for (k, _) in map.iter() {
+                        for k in map.keys() {
                             kc_local.borrow_mut().insert(k.clone(), hex.clone());
                         }
                         crate::daemon_client::set_color_sync(8, hex.clone());
@@ -503,7 +503,7 @@ fn build_interactive_keyboard(
                             zc_local.borrow_mut()[zone_idx] = hex.clone();
                         }
                         let map = b_map_local.borrow();
-                        for (k, _) in map.iter() {
+                        for k in map.keys() {
                             if get_zone_for_key(k) == target_zone {
                                 kc_local.borrow_mut().insert(k.clone(), hex.clone());
                             }
@@ -544,7 +544,7 @@ fn build_interactive_keyboard(
             },
             "cycle" => {
                 css.push_str("@keyframes kb_cycle { 0% { background: #ff0000; } 16% { background: #ffff00; } 33% { background: #00ff00; } 50% { background: #00ffff; } 66% { background: #0000ff; } 83% { background: #ff00ff; } 100% { background: #ff0000; } }\n");
-                for (_, btn) in b_map_anim.borrow().iter() {
+                for btn in b_map_anim.borrow().values() {
                     css.push_str(&format!("#{} {{ animation: kb_cycle {:.1}s infinite linear; opacity: 1.0; }}\n", btn.widget_name(), duration));
                 }
             },

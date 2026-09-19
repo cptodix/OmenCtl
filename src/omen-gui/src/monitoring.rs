@@ -132,7 +132,7 @@ fn build_monitor_card(icon_path: &str, title: &str, bar_class: &str, pwr_title: 
 
     let b_fan = gtk::Box::builder().orientation(gtk::Orientation::Vertical).spacing(3).build();
     b_fan.append(&sub_label(i18n::t("mon_fan")));
-    let l_f_val = gtk::Label::builder().label(&format!("── {}", i18n::t("mon_rpm"))).css_classes(["os-monitor-val-sm"]).build();
+    let l_f_val = gtk::Label::builder().label(format!("── {}", i18n::t("mon_rpm"))).css_classes(["os-monitor-val-sm"]).build();
     b_fan.append(&l_f_val);
 
     r3.append(&b_pwr);
@@ -387,7 +387,7 @@ pub fn build_spec_header() -> gtk::Box {
 
     // Device image
     card.append(&gtk::Image::builder()
-        .file(&crate::asset_resolver::get_asset_path(img_name))
+        .file(crate::asset_resolver::get_asset_path(img_name))
         .pixel_size(80)
         .valign(gtk::Align::Center)
         .build());

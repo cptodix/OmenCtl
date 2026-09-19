@@ -169,12 +169,11 @@ impl AutoUpdateService {
         let mut target_dir = extract_dir.clone();
         if let Ok(mut entries) = tokio::fs::read_dir(&extract_dir).await {
             while let Ok(Some(entry)) = entries.next_entry().await {
-                if entry.file_type().await.map(|f| f.is_dir()).unwrap_or(false) {
-                    if entry.file_name().to_string_lossy().starts_with("omen-space") {
+                if entry.file_type().await.map(|f| f.is_dir()).unwrap_or(false)
+                    && entry.file_name().to_string_lossy().starts_with("omen-space") {
                         target_dir = entry.path().to_string_lossy().to_string();
                         break;
                     }
-                }
             }
         }
 
@@ -226,7 +225,7 @@ fn is_newer_semver(current: &str, remote: &str) -> bool {
             .filter_map(|p| p.parse::<u32>().ok())
             .collect();
         (
-            *parts.get(0).unwrap_or(&0),
+            *parts.first().unwrap_or(&0),
             *parts.get(1).unwrap_or(&0),
             *parts.get(2).unwrap_or(&0),
         )

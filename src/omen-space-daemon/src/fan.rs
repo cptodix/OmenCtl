@@ -117,11 +117,10 @@ impl FanService {
         state.mode = hw_mode;
         
         // Apply saved config if different from hardware state
-        if state.hwmon_path.is_some() {
-            if state.mode != config.fan_mode {
+        if state.hwmon_path.is_some()
+            && state.mode != config.fan_mode {
                 Self::set_mode_internal(&mut state, &config.fan_mode).await;
             }
-        }
         
         let service = Self {
             state: Arc::new(Mutex::new(state)),
@@ -372,7 +371,7 @@ impl FanService {
         // Prevent I/O flooding: only write if duty changed or 10 seconds elapsed
         let now = std::time::Instant::now();
         let should_write = state.last_written_duty != Some(duty) || 
-            state.last_written_duty_time.map_or(true, |t| now.duration_since(t).as_secs() >= 10);
+            state.last_written_duty_time.is_none_or(|t| now.duration_since(t).as_secs() >= 10);
 
         if !should_write {
             return true;

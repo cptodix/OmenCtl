@@ -53,8 +53,8 @@ impl EvdevMonitor {
                     let path = entry.path();
                     if path.to_string_lossy().contains("event") {
                         if let Ok(dev) = Device::open(&path) {
-                            if dev.supported_keys().map_or(false, |k| k.contains(Key::KEY_A)) {
-                                let is_mouse = dev.supported_relative_axes().map_or(false, |a| a.contains(evdev::RelativeAxisType::REL_X) || a.contains(evdev::RelativeAxisType::REL_Y));
+                            if dev.supported_keys().is_some_and(|k| k.contains(Key::KEY_A)) {
+                                let is_mouse = dev.supported_relative_axes().is_some_and(|a| a.contains(evdev::RelativeAxisType::REL_X) || a.contains(evdev::RelativeAxisType::REL_Y));
                                 if !is_mouse {
                                     if let Ok(stream) = dev.into_event_stream() {
                                         info!("EvdevMonitor: listening to {:?}", path);

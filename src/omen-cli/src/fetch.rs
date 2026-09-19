@@ -350,7 +350,7 @@ pub async fn print_omen_fetch(conn: &zbus::Connection) -> Result<()> {
 
 async fn execute_input_command(input: &str, conn: &zbus::Connection) -> String {
     let now = chrono::Local::now().format("%H:%M:%S");
-    let parts: Vec<&str> = input.trim().split_whitespace().collect();
+    let parts: Vec<&str> = input.split_whitespace().collect();
     if parts.is_empty() {
         return String::new();
     }
@@ -506,7 +506,7 @@ async fn execute_input_command(input: &str, conn: &zbus::Connection) -> String {
                         other => other.trim_start_matches('#'),
                     };
                     match r.set_color(8, hex).await {
-                        Ok(_) => format!("[{}] \x1b[1;32m{}\x1b[0m", now, crate::i18n::t("rgb_color").replacen("{}", &hex, 1)),
+                        Ok(_) => format!("[{}] \x1b[1;32m{}\x1b[0m", now, crate::i18n::t("rgb_color").replacen("{}", hex, 1)),
                         Err(e) => format!("[{}] \x1b[1;31m{} {}\x1b[0m", now, crate::i18n::t("rgb_error"), e),
                     }
                 }

@@ -42,6 +42,12 @@ pub struct DesktopRgbController {
     current_pid: Option<u16>,
 }
 
+impl Default for DesktopRgbController {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DesktopRgbController {
     pub fn new() -> Self {
         Self {

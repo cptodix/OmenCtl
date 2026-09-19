@@ -148,7 +148,7 @@ async fn reload_profiles(container: &gtk::Box) {
             for profile in profiles {
                 let row = adw::ActionRow::builder()
                     .title(&profile.process_name)
-                    .subtitle(&format!("{}: {}  ·  {}: {}", i18n::t("profile_fmt"), profile.power_profile, i18n::t("fan_fmt"), profile.fan_mode))
+                    .subtitle(format!("{}: {}  ·  {}: {}", i18n::t("profile_fmt"), profile.power_profile, i18n::t("fan_fmt"), profile.fan_mode))
                     .build();
 
                 let icon = match profile.process_name.as_str() {
@@ -302,7 +302,7 @@ fn show_app_picker_modal(parent_window: &impl IsA<gtk::Window>, target_entry: &g
             valid_apps.push(app);
         }
     }
-    valid_apps.sort_by(|a, b| a.name().to_lowercase().cmp(&b.name().to_lowercase()));
+    valid_apps.sort_by_key(|a| a.name().to_lowercase());
     
     for app in valid_apps {
         let name = app.name().to_string();

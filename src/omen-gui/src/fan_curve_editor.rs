@@ -30,7 +30,7 @@ pub fn show_fan_curve_editor(
         .build();
 
     vbox.append(&gtk::Label::builder()
-        .label(&i18n::t("editing_preset").replace("{}", preset_name))
+        .label(i18n::t("editing_preset").replace("{}", preset_name))
         .css_classes(["os-section-header"])
         .halign(gtk::Align::Start)
         .build());
@@ -194,12 +194,10 @@ pub fn show_fan_curve_editor(
                 if speed > 100.0 { speed = 100.0; }
                 
                 let mut p = pts_d.borrow_mut();
-                if idx > 0 {
-                    if temp <= p[idx-1].0 { temp = p[idx-1].0 + 1.0; }
-                }
-                if idx < p.len() - 1 {
-                    if temp >= p[idx+1].0 { temp = p[idx+1].0 - 1.0; }
-                }
+                if idx > 0
+                    && temp <= p[idx-1].0 { temp = p[idx-1].0 + 1.0; }
+                if idx < p.len() - 1
+                    && temp >= p[idx+1].0 { temp = p[idx+1].0 - 1.0; }
                 
                 p[idx] = (temp, speed);
                 da_d.queue_draw();

@@ -588,7 +588,7 @@ impl PowerService {
             }
             // Async GPU sync (non-blocking, like Python threads)
             let p = normalized.clone();
-            let cfg_clone = self.config.clone();
+            let _cfg_clone = self.config.clone();
             tokio::spawn(async move {
                 tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
                 Self::sync_gpu_power(&p).await;

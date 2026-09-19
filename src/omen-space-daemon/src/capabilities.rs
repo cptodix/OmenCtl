@@ -275,13 +275,12 @@ pub fn detect(board_id: &str, product_name: &str, cpu_model: &str) -> ModelCapab
     let is_hx = cpu_upper.contains("HX");
     let is_amd = cpu_upper.contains("AMD") || cpu_upper.contains("RYZEN");
     
-    if cap.family.to_uppercase().contains("VICTUS") {
-        if !is_hx && !is_amd {
+    if cap.family.to_uppercase().contains("VICTUS")
+        && !is_hx && !is_amd {
             cap.supports_undervolt = false;
             cap.supports_tcc_offset = false;
             cap.supports_power_limits = false;
         }
-    }
     cap
 }
 

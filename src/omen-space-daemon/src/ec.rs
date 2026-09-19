@@ -87,12 +87,12 @@ impl LinuxEcController {
         let debugfs_base = "/sys/kernel/debug";
         if !Path::new(debugfs_base).exists() {
             let _ = Command::new("mount")
-                .args(&["-t", "debugfs", "none", debugfs_base])
+                .args(["-t", "debugfs", "none", debugfs_base])
                 .output();
         }
 
         let _ = Command::new("modprobe")
-            .args(&["ec_sys", "write_support=1"])
+            .args(["ec_sys", "write_support=1"])
             .output();
     }
 
@@ -149,13 +149,12 @@ impl LinuxEcController {
 
         match OpenOptions::new().read(true).write(true).open(EC_PATH) {
             Ok(mut file) => {
-                if file.seek(SeekFrom::Start(reg)).is_ok() {
-                    if file.write(&[value]).is_ok() {
+                if file.seek(SeekFrom::Start(reg)).is_ok()
+                    && file.write(&[value]).is_ok() {
                         let _ = file.flush();
                         debug!("EC write_byte success at 0x{:02X} = 0x{:02X}", reg, value);
                         return true;
                     }
-                }
             }
             Err(_) => {
                 warn!("EC access lost on write. Kernel lockdown?");

@@ -2,6 +2,7 @@
 
 # Rust build artifacts
 target/
+Cargo.lock
 **/.cargo-lock
 bugfix/
 fixes.md

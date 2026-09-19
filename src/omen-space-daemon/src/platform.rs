@@ -40,9 +40,10 @@ impl PlatformConfig {
         if let Ok(data) = std::fs::read_to_string(CONFIG_PATH) {
             serde_json::from_str(&data).unwrap_or_default()
         } else {
-            let mut d = Self::default();
-            d.battery_charge_limit = 100;
-            d
+            Self {
+                battery_charge_limit: 100,
+                ..Default::default()
+            }
         }
     }
     fn save(&self) {
@@ -71,7 +72,7 @@ fn get_cpu_model() -> String {
     if let Ok(data) = std::fs::read_to_string("/proc/cpuinfo") {
         for line in data.lines() {
             if line.starts_with("model name") {
-                if let Some(val) = line.splitn(2, ':').nth(1) {
+                if let Some(val) = line.split_once(':').map(|x| x.1) {
                     return val.trim().to_string();
                 }
             }
@@ -179,7 +180,9 @@ fn get_battery_info() -> serde_json::Value {
         read("charge_full").and_then(|s| s.parse::<u64>().ok()),
         read("charge_full_design").and_then(|s| s.parse::<u64>().ok()),
     ) {
-        if cfd > 0 { bat.insert("health".into(), ((cf * 100 / cfd).min(100)).into()); }
+        if let Some(pct) = (cf * 100).checked_div(cfd) {
+            bat.insert("health".into(), pct.min(100).into());
+        }
     }
     if let Some(p) = read("power_now").and_then(|s| s.parse::<u64>().ok()) {
         bat.insert("power_now".into(), (p as f64 / 1_000_000.0).into());
@@ -580,11 +583,10 @@ pub fn set_thermal_policy_by_name(profile: &str) -> bool {
         "/sys/devices/platform/hp-omen/thermal_profile",
         "/sys/devices/platform/hp-omen/thermal-profile",
     ] {
-        if std::path::Path::new(node).exists() {
-            if std::fs::write(node, mode_str).is_ok() {
+        if std::path::Path::new(node).exists()
+            && std::fs::write(node, mode_str).is_ok() {
                 set = true;
             }
-        }
     }
     set
 }

@@ -41,7 +41,7 @@ pub fn build_page(window: &adw::ApplicationWindow) -> gtk::Box {
         .subtitle(i18n::t("last_checked"))
         .build();
     ver_row.add_suffix(&gtk::Label::builder()
-        .label(&format!("v{}", env!("CARGO_PKG_VERSION")))
+        .label(format!("v{}", env!("CARGO_PKG_VERSION")))
         .css_classes(["os-section-desc"])
         .valign(gtk::Align::Center)
         .build());
@@ -232,7 +232,7 @@ fn show_app_update_modal(window: &adw::ApplicationWindow) {
                                 title_lbl.set_label(i18n::t("update_available"));
                                 
                                 let ver_lbl = gtk::Label::builder()
-                                    .label(&format!("v{} ➔ v{}", current_ver, clean_tag))
+                                    .label(format!("v{} ➔ v{}", current_ver, clean_tag))
                                     .css_classes(["title-2"])
                                     .margin_bottom(8)
                                     .build();

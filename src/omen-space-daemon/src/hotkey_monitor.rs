@@ -20,10 +20,10 @@ impl HotkeyMonitor {
                     let path = entry.path();
                     if path.to_string_lossy().contains("event") {
                         if let Ok(dev) = Device::open(&path) {
-                            let is_keyboard = dev.supported_keys().map_or(false, |k| {
+                            let is_keyboard = dev.supported_keys().is_some_and(|k| {
                                 k.contains(Key::KEY_A) || k.contains(Key::KEY_F2) || k.contains(Key::KEY_PROG1) || k.contains(Key::KEY_CALC)
                             });
-                            let is_mouse = dev.supported_relative_axes().map_or(false, |a| {
+                            let is_mouse = dev.supported_relative_axes().is_some_and(|a| {
                                 a.contains(evdev::RelativeAxisType::REL_X) || a.contains(evdev::RelativeAxisType::REL_Y)
                             });
                             if is_keyboard && !is_mouse {

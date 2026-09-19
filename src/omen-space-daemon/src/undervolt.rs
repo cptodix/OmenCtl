@@ -404,7 +404,7 @@ impl UndervoltService {
                 if write_msr(read_req, MSR_VOLTAGE_OFFSETS) {
                     if let Some(resp) = read_msr(MSR_VOLTAGE_OFFSETS, 0) {
                         let mv = unpack_offset(resp);
-                        result.insert(plane.to_string(), (mv as f64).into());
+                        result.insert(plane.to_string(), mv.into());
                     }
                 }
             }

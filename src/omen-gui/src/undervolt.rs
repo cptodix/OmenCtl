@@ -228,7 +228,7 @@ pub fn build_page() -> gtk::Box {
     tcc_scale.set_size_request(200, -1);
     tcc_scale.set_valign(gtk::Align::Center);
     let tcc_lbl = gtk::Label::builder()
-        .label(&format!("97°C ({}: 3°C)", i18n::t("tcc_offset_str")))
+        .label(format!("97°C ({}: 3°C)", i18n::t("tcc_offset_str")))
         .css_classes(["os-monitor-val-sm"])
         .valign(gtk::Align::Center)
         .margin_start(8)
