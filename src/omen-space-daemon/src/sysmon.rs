@@ -63,6 +63,7 @@ pub struct HardwareSpecs {
 }
 
 // ── Sensor Path Cache for Zero-Glob Overhead ────────────────
+#[derive(Clone)]
 struct SensorPaths {
     cpu_temp_path: Option<PathBuf>,
     cpu_pwr_path: Option<PathBuf>,
@@ -75,7 +76,7 @@ struct SensorPaths {
     rapl_energy_path: Option<PathBuf>,
 }
 
-static SENSOR_PATHS: OnceLock<SensorPaths> = OnceLock::new();
+static SENSOR_PATHS: Mutex<Option<(SensorPaths, std::time::Instant)>> = Mutex::new(None);
 static SPECS_CACHE: OnceLock<HardwareSpecs> = OnceLock::new();
 
 // State for Instantaneous CPU load delta calculation
@@ -515,7 +516,17 @@ pub fn get_safe_gpu_temp() -> f64 {
 /// Instantaneous, Zero-Fork Telemetry Fetch
 pub fn fetch_system_stats() -> SystemStats {
     let mut stats = SystemStats::default();
-    let paths = SENSOR_PATHS.get_or_init(init_sensor_paths);
+    let paths = {
+        let mut guard = SENSOR_PATHS.lock().unwrap_or_else(|e| e.into_inner());
+        let (cached_paths, last_update) = guard.get_or_insert_with(|| {
+            (init_sensor_paths(), std::time::Instant::now())
+        });
+        if (cached_paths.fan1_path.is_none() || cached_paths.fan2_path.is_none()) && last_update.elapsed().as_secs() > 5 {
+            *cached_paths = init_sensor_paths();
+            *last_update = std::time::Instant::now();
+        }
+        cached_paths.clone()
+    };
 
     // ── 1. Instantaneous CPU Load from /proc/stat (Delta Calculation) ──
     if let Ok(stat_content) = fs::read_to_string("/proc/stat") {
