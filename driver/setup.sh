@@ -217,57 +217,12 @@ find_module_paths() {
 # /usr/lib/modules and is immune to the DKMS path-detection race.
 
 install_hpwmi_override() {
-    # Only write the blacklist when there is a stock (non-DKMS) hp-wmi to
-    # override.  On kernels that never shipped hp-wmi there is nothing
-    # to blacklist.
-    local stock_path
-    stock_path=$(modinfo -n hp-wmi 2>/dev/null || true)
-
-    if [[ -z "$stock_path" ]]; then
-        info "No stock hp-wmi module found — skipping udev blacklist."
-        return 0
-    fi
-
-    # If modinfo already points at a DKMS/updates path our module already
-    # wins the depmod ordering — no further action needed.
-    if [[ "$stock_path" == *"updates"* ]] || [[ "$stock_path" == *"dkms"* ]] || \
-       [[ "$stock_path" == *"extra/"* ]]; then
-        info "hp-wmi is already a DKMS/updates module ($stock_path) — skipping blacklist."
-        return 0
-    fi
-
-    # FIX: Use ONLY `blacklist hp_wmi` — NOT `install hp_wmi /bin/true`.
-    #
-    # Why blacklist-only is correct:
-    #   • DKMS places our custom hp-wmi.ko in updates/, which depmod always
-    #     prefers over the stock kernel/ path.  Explicit `modprobe hp_wmi`
-    #     (or loading it as a dependency of hp_omen_extra) therefore always
-    #     picks up our DKMS version — no intervention needed for that path.
-    #   • The ONLY risk is udev autoloading the stock module via alias matching
-    #     before our modules-load.d entry fires.  `blacklist` suppresses that
-    #     udev-triggered autoload without touching explicit modprobe calls.
-    #
-    # Why `install hp_wmi /bin/true` would be WRONG:
-    #   • The `install` directive intercepts by MODULE NAME, not file path.
-    #     Our custom DKMS module has the same name (hp_wmi), so the override
-    #     would silently prevent OUR module from loading too — both at boot
-    #     and when hp_omen_extra pulls it in as a dependency.
-    info "Stock hp-wmi detected at $stock_path — adding udev blacklist..."
-    cat > "$HPWMI_OVERRIDE_CONF" << 'MODPROBE'
-# omen-space: Prevent udev from autoloading the stock hp-wmi so that the
-# custom DKMS build (which exposes gpu_tgp, gpu_ppab, chassis_temp and
-# improved fan control) is the only one that ever loads.
-#
-# How it works: DKMS places hp-wmi.ko in updates/, which depmod prefers
-# over the stock kernel/ path.  This blacklist only suppresses the
-# udev-triggered autoload of the stock alias; explicit `modprobe hp_wmi`
-# and dependency resolution by modprobe still load the DKMS version.
-#
-# Managed automatically by the omen-space installer — do not edit manually.
-# Removed by: sudo ./driver/setup.sh uninstall
-blacklist hp_wmi
-MODPROBE
-    ok "Stock hp-wmi udev autoload blacklisted via $HPWMI_OVERRIDE_CONF"
+    # The previous approach of blacklisting hp_wmi prevents systemd-modules-load
+    # from autoloading it at boot. Since DKMS places hp-wmi.ko in updates/ which
+    # depmod already prefers over the stock kernel path, we do not need to
+    # override or blacklist anything.
+    # We explicitly remove the old override if it exists.
+    remove_hpwmi_override
 }
 
 remove_hpwmi_override() {
